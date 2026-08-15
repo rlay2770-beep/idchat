@@ -187,40 +187,23 @@
       }
     }
 
-    // Dynamic Audio Unlocker (Browser Autoplay Permission Unlocker)
-    function unlockAudioContext() {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-    }
-
-    // Click/Touch Event တိုင်းတွင် Audio Lock ကို Auto 解除 (Unlock) ပေးမည်
-    document.addEventListener('click', unlockAudioContext);
-    document.addEventListener('touchstart', unlockAudioContext);
-
     // --- Audio Sound Synthesizer (Ringtone) ---
     function playRingtone() {
       try {
-        unlockAudioContext();
-        stopRingtone(); // အဟောင်းရှိပါက အရင်ရှင်းမည်
-
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         ringtoneInterval = setInterval(() => {
-          if (audioCtx && audioCtx.state === 'running') {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(440, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.8);
-          }
+          if (audioCtx.state === 'suspended') audioCtx.resume();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+          gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.8);
         }, 1500);
-      } catch (e) { console.log("Ringtone Error:", e); }
+      } catch (e) { console.log(e); }
     }
 
     function stopRingtone() {
@@ -268,7 +251,6 @@
       document.getElementById("userNameDisplay").innerText = name;
       document.getElementById("authModal").style.display = "none";
       
-      unlockAudioContext();
       requestNotificationPermission();
       listenForIncomingCalls();
     }
@@ -316,9 +298,11 @@
     function createPeerConnection(targetID) {
       peerConnection = new RTCPeerConnection(rtcConfig);
 
-      localStream.getTracks().forEach(track => {
-        peerConnection.addTrack(track, localStream);
-      });
+      if (localStream) {
+        localStream.getTracks().forEach(track => {
+          peerConnection.addTrack(track, localStream);
+        });
+      }
 
       peerConnection.ontrack = (event) => {
         document.getElementById("remoteVideo").srcObject = event.streams[0];
@@ -354,18 +338,27 @@
       });
     }
 
+    // Helper Function: Media Permisssion အမြဲတမ်း ပြန်လည်တောင်းဆိုစေရန် Clean ရင်းနှီးမှုပြုလုပ်ခြင်း
+    async function getFreshMediaPermissions() {
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+      }
+      return await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    }
+
     window.startCall = async () => {
-      unlockAudioContext();
       const targetID = document.getElementById("targetIDInput").value.trim();
       if (!targetID) return alert("ခေါ်ဆိုလိုသော သူငယ်ချင်း ID ကို ရိုက်ထည့်ပါ!");
 
       activeCallTargetID = targetID;
 
       try {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        // အချိန်တိုင်း Permissions Pop-up ပြန်တောင်းနိုင်အောင် fresh media Stream ရယူခြင်း
+        localStream = await getFreshMediaPermissions();
         document.getElementById("localVideo").srcObject = localStream;
       } catch (err) {
-        return alert("ကင်မရာ သို့မဟုတ် မိုက်ခရိုဖုန်း အသုံးပြုခွင့် ပိတ်ထားပါသည်။");
+        return alert("ကင်မရာ သို့မဟုတ် မိုက်ခရိုဖုန်း အသုံးပြုခွင့် ငြင်းပယ်ထားပါသည်။");
       }
 
       document.getElementById("videoCallOverlay").style.display = "flex";
@@ -413,16 +406,16 @@
     };
 
     window.acceptIncomingCall = async () => {
-      unlockAudioContext();
       stopRingtone();
       document.getElementById("acceptCallBtn").style.display = "none";
       document.getElementById("callStatusText").innerText = "ချိတ်ဆက်နေသည်...";
 
       try {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        // အချိန်တိုင်း Permissions Pop-up ပြန်တောင်းနိုင်အောင် fresh media Stream ရယူခြင်း
+        localStream = await getFreshMediaPermissions();
         document.getElementById("localVideo").srcObject = localStream;
       } catch (err) {
-        return alert("ကင်မရာ ဖွင့်မရပါ။");
+        return alert("ကင်မရာ သို့မဟုတ် မိုက်ခရိုဖုန်း အသုံးပြုခွင့် ငြင်းပယ်ထားပါသည်။");
       }
 
       const callerID = incomingCallData.callerID;
@@ -462,10 +455,15 @@
       resetCallState();
     };
 
+    
     function resetCallState() {
       stopRingtone();
       if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
+        // Video/Audio Track များကို လုံးဝ ပိတ်သိမ်းခြင်း
+        localStream.getTracks().forEach(track => {
+          track.stop();
+          localStream.removeTrack(track);
+        });
         localStream = null;
       }
       if (peerConnection) {
@@ -478,4 +476,4 @@
     }
   </script>
 </body>
-</html
+</html>
