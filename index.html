@@ -69,6 +69,30 @@
     </div>
   </div>
 
+  <!-- Welcome Modal -->
+  <div id="welcomeModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; justify-content:center; align-items:center; z-index:9999; backdrop-filter: blur(3px);">
+    <div style="background:white; padding:24px; border-radius:18px; width:85%; max-width:340px; text-align:center; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+      
+      <h3 style="margin-top:0; color:#0084ff; font-size:20px;">Welcome to IDChat! 👋</h3>
+      
+      <p style="font-size:13px; color:#555; line-height:1.5; margin-bottom:15px;">
+        📞 Normal Phone Call နဲ့ SMS တွေမှာ ပိုက်ဆံတွေ အမြဲကုန်လို့ စိတ်ညစ်နေပါသလား?<br><br>
+        ဒါဆိုရင်တော့ <b>IDChat</b> ကို အသုံးပြုကြည့်ပါ။ ပိုက်ဆံတစ်ပြားမှ မကုန်ဘဲ လွတ်လပ်စွာ ဆက်သွယ်နိုင်မယ့် အကောင်းဆုံး နည်းလမ်းတစ်ခု ဖြစ်ပါတယ်။
+      </p>
+
+      <div style="background:#f0f7ff; padding:12px; border-radius:10px; text-align:left; font-size:13px; line-height:1.6; color:#333; margin-bottom:15px;">
+        <b>✨ ပြုလုပ်ရန် လွယ်ကူသော နည်းလမ်း -</b><br>
+        ၁။ မိမိကြိုက်နှစ်သက်ရာ Name နဲ့ Password ဖြည့်ပြီး အကောင့်ဝင်ပါ။<br>
+        ၂။ မိမိရဲ့ ID ကို သူငယ်ချင်းထံ ပေးပို့ပါ။<br>
+        ၃။ သူငယ်ချင်း ID ကို ရိုက်ထည့်ပြီး Video Call / Chat စိတ်ကြိုက် အခမဲ့ အသုံးပြုနိုင်ပါပြီ!
+      </div>
+
+      <button onclick="document.getElementById('welcomeModal').style.display='none'" style="width:100%; padding:12px; background:#0084ff; color:white; border:none; border-radius:10px; font-weight:bold; font-size:15px; cursor:pointer;">
+        စတင်အသုံးပြုမည်
+      </button>
+    </div>
+  </div>
+
   <!-- Video Call Overlay Screen -->
   <div class="video-call-overlay" id="videoCallOverlay">
     <h3 style="color: white; margin-top: 10px;" id="callStatusText">Video Call ခေါ်ဆိုနေသည်...</h3>
@@ -251,6 +275,9 @@
       document.getElementById("userNameDisplay").innerText = name;
       document.getElementById("authModal").style.display = "none";
       
+      // Login အောင်မြင်ပါက Welcome Modal ပြသမည်
+      document.getElementById("welcomeModal").style.display = "flex";
+
       requestNotificationPermission();
       listenForIncomingCalls();
     }
@@ -458,5 +485,4 @@
     }
   </script>
 </body>
-      </html>
-  
+</html>
