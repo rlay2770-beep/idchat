@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IDChat - Real WebRTC & AI Learning</title>
+  <title>IDChat - Real WebRTC Video Call</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
     body { background-color: #f0f2f5; display: flex; justify-content: center; height: 100vh; }
@@ -13,11 +13,6 @@
     .call-btn { background: #28a745; color: white; border: none; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer; }
     .user-card { background: #e7f3ff; padding: 8px 15px; font-size: 13px; color: #0084ff; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #cce5ff; }
     
-    /* Navigation Bar for AI & Chat */
-    .nav-tabs { display: flex; background: #eee; border-bottom: 1px solid #ddd; }
-    .nav-tab { flex: 1; padding: 10px; text-align: center; background: #e9ecef; border: none; font-weight: bold; cursor: pointer; color: #555; }
-    .nav-tab.active { background: white; color: #0084ff; border-bottom: 2px solid #0084ff; }
-
     .auth-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 1000; }
     .auth-box { background: white; padding: 25px; border-radius: 12px; width: 85%; max-width: 320px; text-align: center; }
     .auth-box input { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; }
@@ -27,9 +22,6 @@
     .search-box input { flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 20px; outline: none; }
     .search-box button { padding: 8px 15px; background: #0084ff; color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; }
 
-    .content-section { flex: 1; display: none; flex-direction: column; overflow: hidden; }
-    .content-section.active { display: flex; }
-
     .chat-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #f4f6f8; }
     .message { max-width: 75%; padding: 10px 14px; border-radius: 15px; font-size: 14px; line-height: 1.4; word-break: break-word; }
     .message.sent { background: #0084ff; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
@@ -38,15 +30,6 @@
     .input-area { padding: 10px; border-top: 1px solid #eee; display: flex; gap: 8px; align-items: center; background: white; }
     .input-area input[type="text"] { flex: 1; padding: 10px 15px; border: 1px solid #ddd; border-radius: 20px; outline: none; }
     .input-area button { background: #0084ff; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 16px; flex-shrink: 0; }
-
-    /* AI Switcher & Container Styles */
-    .ai-switcher { display: flex; gap: 8px; padding: 8px 12px; background: #f8f9fa; border-bottom: 1px solid #e9ecef; }
-    .ai-selector-btn { flex: 1; padding: 8px; border: 1px solid #0084ff; background: #fff; color: #0084ff; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; transition: all 0.2s; }
-    .ai-selector-btn.active { background: #0084ff; color: #fff; }
-
-    .ai-frame-container { flex: 1; position: relative; width: 100%; height: 100%; }
-    .ai-frame { width: 100%; height: 100%; border: none; position: absolute; top: 0; left: 0; display: none; }
-    .ai-frame.active { display: block; }
 
     /* Video Call Overlay Screen */
     .video-call-overlay { display: none; position: fixed; inset: 0; background: #111; z-index: 2000; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px; }
@@ -75,33 +58,15 @@
     </div>
   </div>
 
-  <!-- Welcome Modal -->
-  <div id="welcomeModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; justify-content:center; align-items:center; z-index:9999; backdrop-filter: blur(3px);">
-    <div style="background:white; padding:24px; border-radius:18px; width:85%; max-width:340px; text-align:center; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
-      <h3 style="margin-top:0; color:#0084ff; font-size:20px;">Welcome to IDChat! 👋</h3>
-      <p style="font-size:13px; color:#555; line-height:1.5; margin-bottom:15px;">
-        📞 Normal Phone Call နဲ့ SMS တွေမှာ ပိုက်ဆံတွေ အမြဲကုန်လို့ စိတ်ညစ်နေပါသလား?<br><br>
-        ဒါဆိုရင်တော့ <b>IDChat</b> ကို အသုံးပြုကြည့်ပါ။ ပိုက်ဆံတစ်ပြားမှ မကုန်ဘဲ လွတ်လပ်စွာ ဆက်သွယ်နိုင်မယ့် အကောင်းဆုံး နည်းလမ်းတစ်ခု ဖြစ်ပါတယ်။
-      </p>
-      <div style="background:#f0f7ff; padding:12px; border-radius:10px; text-align:left; font-size:13px; line-height:1.6; color:#333; margin-bottom:15px;">
-        <b>✨ ပြုလုပ်ရန် လွယ်ကူသော နည်းလမ်း -</b><br>
-        ၁။ မိမိကြိုက်နှစ်သက်ရာ Name နဲ့ Password ဖြည့်ပြီး အကောင့်ဝင်ပါ။<br>
-        ၂။ မိမိရဲ့ ID ကို သူငယ်ချင်းထံ ပေးပို့ပါ။<br>
-        ၃။ သူငယ်ချင်း ID ကို ရိုက်ထည့်ပြီး Video Call / Chat စိတ်ကြိုက် အခမဲ့ အသုံးပြုနိုင်ပါပြီ!
-      </div>
-      <button onclick="document.getElementById('welcomeModal').style.display='none'" style="width:100%; padding:12px; background:#0084ff; color:white; border:none; border-radius:10px; font-weight:bold; font-size:15px; cursor:pointer;">
-        စတင်အသုံးပြုမည်
-      </button>
-    </div>
-  </div>
-
   <!-- Video Call Overlay Screen -->
   <div class="video-call-overlay" id="videoCallOverlay">
     <h3 style="color: white; margin-top: 10px;" id="callStatusText">Video Call ခေါ်ဆိုနေသည်...</h3>
+    
     <div class="video-container">
       <video id="remoteVideo" class="remote-video" autoplay playsinline></video>
       <video id="localVideo" class="local-video" autoplay playsinline muted></video>
     </div>
+
     <div class="call-controls">
       <button class="call-action-btn btn-accept-call" id="acceptCallBtn" onclick="acceptIncomingCall()" style="display: none;">📞</button>
       <button class="call-action-btn btn-end-call" onclick="endCall()">📵</button>
@@ -119,46 +84,24 @@
       <span id="userNameDisplay">-</span>
     </div>
 
-    <!-- Navigation Tabs -->
-    <div class="nav-tabs">
-      <button class="nav-tab active" onclick="switchTab('chatTab', this)">💬 Chat & Call</button>
-      <button class="nav-tab" onclick="switchTab('aiTab', this)">🤖 သင်ကြားရေး AI</button>
+    <div class="search-box">
+      <input type="text" id="targetIDInput" placeholder="သူငယ်ချင်း၏ ID ရိုက်ထည့်ပါ">
+      <button onclick="connectChat()">စကားပြောမည်</button>
     </div>
 
-    <!-- Chat Tab Section -->
-    <div id="chatTab" class="content-section active">
-      <div class="search-box">
-        <input type="text" id="targetIDInput" placeholder="သူငယ်ချင်း၏ ID ရိုက်ထည့်ပါ">
-        <button onclick="connectChat()">စကားပြောမည်</button>
-      </div>
-
-      <div class="chat-area" id="chatArea">
-        <div style="text-align: center; color: #999; margin-top: 30px; font-size: 13px;">
-          သူငယ်ချင်း ID ကို ရိုက်ထည့်ပြီး စာစတင်ပို့ပါ
-        </div>
-      </div>
-
-      <div class="input-area">
-        <input type="text" id="msgInput" placeholder="စာရိုက်ပါ..." onkeypress="if(event.key==='Enter') sendTextMessage()">
-        <button onclick="sendTextMessage()">➤</button>
+    <div class="chat-area" id="chatArea">
+      <div style="text-align: center; color: #999; margin-top: 30px; font-size: 13px;">
+        သူငယ်ချင်း ID ကို ရိုက်ထည့်ပြီး စာစတင်ပို့ပါ
       </div>
     </div>
 
-    <!-- AI Learning Tab Section -->
-    <div id="aiTab" class="content-section">
-      <div class="ai-switcher">
-        <button class="ai-selector-btn active" onclick="switchAI('aiFrame1', this)">🇬🇧 English AI</button>
-        <button class="ai-selector-btn" onclick="switchAI('aiFrame2', this)">🇲🇲 မြန်မာဘာသာပြန် AI</button>
-      </div>
-      <div class="ai-frame-container">
-        <iframe id="aiFrame1" src="https://effervescent-lolly-f72885.netlify.app/" class="ai-frame active"></iframe>
-        <iframe id="aiFrame2" src="https://peppy-rolypoly-7bd6df.netlify.app/" class="ai-frame"></iframe>
-      </div>
+    <div class="input-area">
+      <input type="text" id="msgInput" placeholder="စာရိုက်ပါ..." onkeypress="if(event.key==='Enter') sendTextMessage()">
+      <button onclick="sendTextMessage()">➤</button>
     </div>
-
   </div>
 
-  <!-- Firebase & Core App Logic -->
+  <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -194,36 +137,7 @@
       ]
     };
 
-    // UI Tab & AI Switcher
-    window.switchTab = (tabId, element) => {
-      document.querySelectorAll('.content-section').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
-      document.getElementById(tabId).classList.add('active');
-      element.classList.add('active');
-    };
-
-    window.switchAI = (frameId, element) => {
-      document.querySelectorAll('.ai-frame').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.ai-selector-btn').forEach(el => el.classList.remove('active'));
-      document.getElementById(frameId).classList.add('active');
-      element.classList.add('active');
-    };
-
-    function requestNotificationPermission() {
-      if ("Notification" in window) {
-        Notification.requestPermission();
-      }
-    }
-
-    function showBackgroundNotification(callerName) {
-      if ("Notification" in window && Notification.permission === "granted") {
-        new Notification("IDChat Video Call ဝင်လာသည်!", {
-          body: `${callerName} ထံမှ Video Call ဝင်လာပါသည်...`,
-          icon: "https://cdn-icons-png.flaticon.com/512/724/724664.png"
-        });
-      }
-    }
-
+    // --- Audio Sound Synthesizer (Ringtone) ---
     function playRingtone() {
       try {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -232,7 +146,7 @@
           const osc = audioCtx.createOscillator();
           const gain = audioCtx.createGain();
           osc.type = 'sine';
-          osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+          osc.frequency.setValueAtTime(440, audioCtx.currentTime); // Standard Ring Tone Frequency
           gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
           osc.connect(gain);
           gain.connect(audioCtx.destination);
@@ -264,29 +178,20 @@
       const pass = document.getElementById("regPass").value.trim();
       if (!name || !pass) return alert("အမည်နှင့် စကားဝှက် ရိုက်ထည့်ပါ!");
 
-      try {
-        const userID = await generateUniqueID();
-        await setDoc(doc(db, "users", userID), { userID, name, password: pass, createdAt: serverTimestamp() });
-        alert(`အကောင့် အောင်မြင်စွာ ဖန်တီးပြီးပါပြီ!\nသင့်၏ ပုံသေ ID: ${userID}`);
-        loginSuccess(userID, name);
-      } catch (err) {
-        alert("အကောင့်ဖွင့်ရာတွင် အမှားတစ်ခု ဖြစ်ပေါ်နေပါသည်။");
-      }
+      const userID = await generateUniqueID();
+      await setDoc(doc(db, "users", userID), { userID, name, password: pass, createdAt: serverTimestamp() });
+      alert(`အကောင့် အောင်မြင်စွာ ဖန်တီးပြီးပါပြီ!\nသင့်၏ ပုံသေ ID: ${userID}`);
+      loginSuccess(userID, name);
     };
 
-    // Fix applied for Login bug
     window.handleLogin = async () => {
       const userID = document.getElementById("loginID").value.trim();
       if (!userID) return alert("ID ရိုက်ထည့်ပါ!");
-      try {
-        const docSnap = await getDoc(doc(db, "users", userID));
-        if (docSnap.exists()) {
-          loginSuccess(userID, docSnap.data().name);
-        } else {
-          alert("ဤ ID ဖြင့် အကောင့်မရှိပါ။ 'အကောင့်အသစ်ဖွင့်မည်' ကို အရင်ပြုလုပ်ပေးပါ!");
-        }
-      } catch (err) {
-        alert("Login ဝင်ရာတွင် အမှားတစ်ခု ဖြစ်ပေါ်နေပါသည်။");
+      const docSnap = await getDoc(doc(db, "users", userID));
+      if (docSnap.exists()) {
+        loginSuccess(userID, docSnap.data().name);
+      } else {
+        alert("ဤ ID ဖြင့် အကောင့်မရှိပါ!");
       }
     };
 
@@ -295,9 +200,7 @@
       document.getElementById("myIDDisplay").innerText = userID;
       document.getElementById("userNameDisplay").innerText = name;
       document.getElementById("authModal").style.display = "none";
-      document.getElementById("welcomeModal").style.display = "flex";
-
-      requestNotificationPermission();
+      
       listenForIncomingCalls();
     }
 
@@ -340,7 +243,8 @@
       });
     };
 
-    // --- WebRTC Functions ---
+    // --- WebRTC Video Call Core ---
+
     function createPeerConnection(targetID) {
       peerConnection = new RTCPeerConnection(rtcConfig);
 
@@ -359,10 +263,12 @@
       };
     }
 
+    // ၁။ ဝင်လာသောဖုန်းကို စောင့်ကြည့်ခြင်း + Automatic Hangup Listener
     function listenForIncomingCalls() {
       onSnapshot(doc(db, "calls", currentUser.userID), async (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data();
+          
           if (data && data.offer && !peerConnection) {
             incomingCallData = data;
             activeCallTargetID = data.callerID;
@@ -370,10 +276,11 @@
             document.getElementById("callStatusText").innerText = `${data.callerName} ထံမှ Video Call ဝင်လာပါသည်...`;
             document.getElementById("acceptCallBtn").style.display = "flex";
             
-            showBackgroundNotification(data.callerName);
+            // Ringtone စတင် မြည်စေခြင်း
             playRingtone();
           }
         } else {
+          // တစ်ဖက်လူ ဖုန်းချလိုက်ပါက အလိုအလျောက် Call Screen ပိတ်သွားခြင်း
           if (document.getElementById("videoCallOverlay").style.display === "flex") {
             resetCallState();
           }
@@ -381,7 +288,8 @@
       });
     }
 
-     window.startCall = async () => {
+    // ၂။ ဖုန်းစတင်ခေါ်ဆိုခြင်း (Caller)
+    window.startCall = async () => {
       const targetID = document.getElementById("targetIDInput").value.trim();
       if (!targetID) return alert("ခေါ်ဆိုလိုသော သူငယ်ချင်း ID ကို ရိုက်ထည့်ပါ!");
 
@@ -410,8 +318,10 @@
         offer: { type: offer.type, sdp: offer.sdp }
       });
 
+      // Callee ရဲ့ Answer နှင့် Hangup ကို စောင့်ကြည့်ခြင်း
       onSnapshot(doc(db, "calls", targetID), async (snapshot) => {
         if (!snapshot.exists()) {
+          // တစ်ဖက်လူက ဖုန်းချလိုက်ပါက မိမိဘက်တွင်ပါ အလိုအလျောက် ကျသွားမည်
           resetCallState();
           return;
         }
@@ -425,6 +335,7 @@
         }
       });
 
+      // ICE Candidates
       const candidatesCol = collection(db, "calls", currentUser.userID, "candidates");
       onSnapshot(candidatesCol, (snapshot) => {
         snapshot.docChanges().forEach(async (change) => {
@@ -438,6 +349,7 @@
       });
     };
 
+    // ၃။ ဝင်လာသောဖုန်းကို လက်ခံခြင်း (Callee)
     window.acceptIncomingCall = async () => {
       stopRingtone();
       document.getElementById("acceptCallBtn").style.display = "none";
@@ -477,6 +389,7 @@
       document.getElementById("callStatusText").innerText = "ဗီဒီယို ဖုန်းခေါ်ဆိုမှု စတင်ပါပြီ";
     };
 
+    // ၄။ ဖုန်းချခြင်း (End Call)
     window.endCall = async () => {
       if (currentUser) {
         await deleteDoc(doc(db, "calls", currentUser.userID)).catch(() => {});
@@ -503,4 +416,5 @@
     }
   </script>
 </body>
-</html>
+  </html>
+        
