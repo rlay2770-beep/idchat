@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IDChat - Privacy Messaging App</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+    body { background-color: #f0f2f5; display: flex; justify-content: center; height: 100vh; }
+    .app-container { width: 100%; max-width: 480px; background: #fff; display: flex; flex-direction: column; height: 100vh; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    
+    /* Header */
+    .header { background: #0084ff; color: white; padding: 15px; text-align: center; font-size: 18px; font-weight: bold; position: relative; }
+    .user-card { background: #e7f3ff; padding: 10px 15px; font-size: 14px; color: #0084ff; display: flex; justify-content: space-between; align-items: center; }
+    
+    /* Login / Register Modal */
+    .auth-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 10; }
+    .auth-box { background: white; padding: 25px; border-radius: 12px; width: 85%; max-width: 320px; text-align: center; }
+    .auth-box input { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; }
+    .auth-box button { width: 100%; padding: 10px; background: #0084ff; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 5px; }
+
+    /* Search Bar */
+    .search-box { padding: 10px; border-bottom: 1px solid #eee; display: flex; gap: 5px; }
+    .search-box input { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 6px; }
+    .search-box button { padding: 8px 12px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; }
+
+    /* Chat Area */
+    .chat-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #f9f9f9; }
+    .message { max-width: 75%; padding: 10px 14px; border-radius: 15px; font-size: 14px; line-height: 1.4; word-break: break-word; }
+    .message.sent { background: #0084ff; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+    .message.received { background: #e4e6eb; color: black; align-self: flex-start; border-bottom-left-radius: 2px; }
+    .message img { max-width: 100%; border-radius: 8px; margin-top: 5px; }
+    .message audio { max-width: 100%; margin-top: 5px; }
+
+    /* Input Area */
+    .input-area { padding: 10px; border-top: 1px solid #eee; display: flex; gap: 8px; align-items: center; background: white; }
+    .input-area input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; outline: none; }
+    .input-area button { background: #0084ff; color: white; border: none; padding: 10px 15px; border-radius: 50%; cursor: pointer; font-size: 16px; }
+    .file-btn { cursor: pointer; font-size: 20px; color: #666; }
+  </style>
+</head>
+<body>
+
+  <!-- Auth Box (Login / Register) -->
+  <div class="auth-overlay" id="authModal">
+    <div class="auth-box">
+      <h3>IDChat မှ ကြိုဆိုပါသည်</h3>
+      <p style="font-size: 12px; color: #666; margin-bottom: 10px;">အကောင့်မရှိပါက အမည်ရိုက်ထည့်၍ အသစ်ဆောက်ပါ</p>
+      <input type="text" id="regName" placeholder="သင့်အမည် ရိုက်ထည့်ပါ">
+      <input type="password" id="regPass" placeholder="စကားဝှက် သတ်မှတ်ပါ">
+      <button onclick="handleRegister()">အကောင့်အသစ်ဖွင့်မည်</button>
+      <hr style="margin: 15px 0;">
+      <p style="font-size: 12px; color: #666;">အကောင့်ရှိပြီးပါက ID ဖြင့်ဝင်ပါ</p>
+      <input type="text" id="loginID" placeholder="သင့် ပုံသေ ID (ဥပမာ: 102938)">
+      <button onclick="handleLogin()" style="background: #6c757d;">ID ဖြင့် Login ဝင်မည်</button>
+    </div>
+  </div>
+
+  <!-- App Main Interface -->
+  <div class="app-container">
+    <div class="header">IDChat - Messaging</div>
+    <div class="user-card" id="userCard">
+      <span>မိမိ ID: <b>-</b></span>
+      <span id="userNameDisplay">-</span>
+    </div>
+
+    <!-- Search Target User ID -->
+    <div class="search-box">
+      <input type="text" id="targetIDInput" placeholder="ဆက်သွယ်လိုသူ၏ ID ရိုက်ထည့်ပါ">
+      <button onclick="connectChat()">စကားပြောမည်</button>
+    </div>
+
+    <!-- Message Display Area -->
+    <div class="chat-area" id="chatArea">
+      <div style="text-align: center; color: #999; margin-top: 20px;">
+        သူငယ်ချင်း၏ ID ကို ရိုက်ထည့်ပြီး စကားစတင်ပြောပါ
+      </div>
+    </div>
+
+    <!-- Input Bar -->
+    <div class="input-area">
+      <label class="file-btn">
+        📷 <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="sendImage()">
+      </label>
+      <input type="text" id="msgInput" placeholder="စာရိုက်ပါ..." onkeypress="if(event.key==='Enter') sendTextMessage()">
+      <button onclick="sendTextMessage()">➤</button>
+    </div>
+  </div>
+
+  <!-- Firebase JavaScript Modular SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyD81JR9IoFkwGbkq0UWQ4aqfgwwpvLg668",
+      authDomain: "idchat-2bc95.firebaseapp.com",
+      databaseURL: "https://idchat-2bc95-default-rtdb.firebaseio.com",
+      projectId: "idchat-2bc95",
+      storageBucket: "idchat-2bc95.firebasestorage.app",
+      messagingSenderId: "698756711127",
+      appId: "1:698756711127:web:873c465228b2d0976fa692"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    let currentUser = null; // { userID, name }
+    let currentChatID = null;
+    let unsubscribeChat = null;
+
+    // 1. ပုံသေ Unique ID ထုတ်ပေးခြင်း
+    async function generateUniqueID() {
+      let isUnique = false;
+      let newID = "";
+      while (!isUnique) {
+        newID = Math.floor(100000 + Math.random() * 900000).toString();
+        const docRef = doc(db, "users", newID);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) isUnique = true;
+      }
+      return newID;
+    }
+
+    // 2. အကောင့်အသစ်ဆောက်ခြင်း
+    window.handleRegister = async () => {
+      const name = document.getElementById("regName").value.trim();
+      const pass = document.getElementById("regPass").value.trim();
+      if (!name || !pass) return alert("အမည်နှင့် စကားဝှက် ရိုက်ထည့်ပါ!");
+
+      const userID = await generateUniqueID();
+      await setDoc(doc(db, "users", userID), {
+        userID: userID,
+        name: name,
+        password: pass,
+        createdAt: serverTimestamp()
+      });
+
+      alert(`အကောင့်အောင်မြင်စွာ ဖန်တီးပြီးပါပြီ!\nသင့်၏ ပုံသေ ID မှာ: ${userID} ဖြစ်ပါသည်။ (သေချာမှတ်ထားပါ)`);
+      loginSuccess(userID, name);
+    };
+
+    // 3. ID ဖြင့် Login ဝင်ခြင်း
+    window.handleLogin = async () => {
+      const userID = document.getElementById("loginID").value.trim();
+      if (!userID) return alert("ID ရိုက်ထည့်ပါ!");
+
+      const docRef = doc(db, "users", userID);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        loginSuccess(userID, data.name);
+      } else {
+        alert("ဤ ID ဖြင့် အကောင့် မရှိပါ။");
+      }
+    };
+
+    function loginSuccess(userID, name) {
+      currentUser = { userID, name };
+      document.getElementById("userCard").children[0].innerHTML = `မိမိ ID: <b>${userID}</b>`;
+      document.getElementById("userNameDisplay").innerText = name;
+      document.getElementById("authModal").style.display = "none";
+    }
+
+    // 4. Chat ချိတ်ဆက်ခြင်း
+    window.connectChat = async () => {
+      const targetID = document.getElementById("targetIDInput").value.trim();
+      if (!targetID || targetID === currentUser.userID) return alert("မှန်ကန်သော သူငယ်ချင်း ID ရိုက်ထည့်ပါ!");
+
+      // 1-on-1 ChatID သတ်မှတ်ခြင်း (ID နှစ်ခုကို Alphabetical စီပြီး ပေါင်းမည်)
+      currentChatID = [currentUser.userID, targetID].sort().join("_");
+      loadMessages();
+    };
+
+    // 5. Messages များကို Realtime ရယူခြင်း
+    function loadMessages() {
+      if (unsubscribeChat) unsubscribeChat();
+
+      const q = query(
+        collection(db, "chats", currentChatID, "messages"),
+        orderBy("timestamp", "asc")
+      );
+
+      unsubscribeChat = onSnapshot(q, (snapshot) => {
+        const chatArea = document.getElementById("chatArea");
+        chatArea.innerHTML = "";
+        snapshot.forEach((doc) => {
+          const msg = doc.data();
+          const isMe = msg.senderID === currentUser.userID;
+          const msgDiv = document.createElement("div");
+          msgDiv.className = `message ${isMe ? 'sent' : 'received'}`;
+
+          if (msg.type === "text") {
+            msgDiv.innerText = msg.content;
+          } else if (msg.type === "image") {
+            msgDiv.innerHTML = `<img src="${msg.fileUrl}" alt="Photo">`;
+          }
+          chatArea.appendChild(msgDiv);
+        });
+        chatArea.scrollTop = chatArea.scrollHeight;
+      });
+    }
+
+    // 6. စာပို့ခြင်း
+    window.sendTextMessage = async () => {
+      const input = document.getElementById("msgInput");
+      const text = input.value.trim();
+      if (!text || !currentChatID) return;
+
+      input.value = "";
+      await addDoc(collection(db, "chats", currentChatID, "messages"), {
+        senderID: currentUser.userID,
+        type: "text",
+        content: text,
+        timestamp: serverTimestamp()
+      });
+    };
+
+    // 7. ဓာတ်ပုံ ပို့ခြင်း (Firebase Storage သို့ တင်ပြီး URL Firestore တွင် သိမ်းခြင်း)
+    window.sendImage = async () => {
+      const fileInput = document.getElementById("imageInput");
+      const file = fileInput.files[0];
+      if (!file || !currentChatID) return;
+
+      const storageRef = ref(storage, `chat_images/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const fileUrl = await getDownloadURL(storageRef);
+
+      await addDoc(collection(db, "chats", currentChatID, "messages"), {
+        senderID: currentUser.userID,
+        type: "image",
+        fileUrl: fileUrl,
+        timestamp: serverTimestamp()
+      });
+      fileInput.value = "";
+    };
+  </script>
+</body>
+</html>
