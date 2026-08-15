@@ -31,7 +31,7 @@
     .input-area input[type="text"] { flex: 1; padding: 10px 15px; border: 1px solid #ddd; border-radius: 20px; outline: none; }
     .input-area button { background: #0084ff; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 16px; flex-shrink: 0; }
 
-    /* Video Call UI Screen */
+    /* Video Call Overlay Screen */
     .video-call-overlay { display: none; position: fixed; inset: 0; background: #111; z-index: 2000; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px; }
     .video-container { width: 100%; height: 75%; position: relative; background: #222; border-radius: 15px; overflow: hidden; display: flex; justify-content: center; align-items: center; }
     .local-video { width: 100px; height: 140px; background: #000; border: 2px solid #fff; border-radius: 10px; position: absolute; top: 10px; right: 10px; object-fit: cover; }
@@ -104,7 +104,7 @@
   <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyD81JR9IoFkwGbkq0UWQ4aqfgwwpvLg668",
@@ -123,11 +123,6 @@
     let currentChatID = null;
     let unsubscribeChat = null;
     let localStream = null;
-    let peerConnection = null;
-
-    const servers = {
-      iceServers: [{ urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }]
-    };
 
     async function generateUniqueID() {
       let isUnique = false, newID = "";
@@ -166,6 +161,8 @@
       document.getElementById("myIDDisplay").innerText = userID;
       document.getElementById("userNameDisplay").innerText = name;
       document.getElementById("authModal").style.display = "none";
+      
+      // Login ဝင်လိုက်တာနဲ့ Incoming Call ကို စတင်စောင့်ကြည့်မည်
       listenForIncomingCalls();
     }
 
@@ -208,67 +205,82 @@
       });
     };
 
-    // --- REALTIME VIDEO CALL SYSTEM ---
+    // --- REALTIME CALL SIGNALING SYSTEM ---
 
-    // 1. Listen for Incoming Call (ဖုန်းဝင်လာပါက အကြောင်းကြားပေးခြင်း)
+    // ၁။ မိမိဆီသို့ ဖုန်းဝင်လာပါက တန်းပေါ်စေသည့် Listener စနစ်
     function listenForIncomingCalls() {
       onSnapshot(doc(db, "calls", currentUser.userID), (snapshot) => {
         if (snapshot.exists()) {
           const callData = snapshot.data();
-          if (callData.status === "offering") {
+          if (callData && callData.status === "calling") {
+            // ဖုန်းဝင်လာပါက Video Call Overlay တန်းဖွင့်မည်
             document.getElementById("videoCallOverlay").style.display = "flex";
-            document.getElementById("callStatusText").innerText = `${callData.callerName} ထံမှ Video Call ဝင်လာပါသည်...`;
+            document.getElementById("callStatusText").innerText = `${callData.callerName} (ID: ${callData.callerID}) ထံမှ Video Call ဝင်လာပါသည်...`;
             document.getElementById("acceptCallBtn").style.display = "flex";
-            window.activeCallData = callData;
           }
         }
       });
     }
 
-    // 2. Start Video Call (ဖုန်းစတင်ခေါ်ဆိုခြင်း)
+    // ၂။ တစ်ဖက်လူဆီသို့ ဖုန်းစတင်ခေါ်ဆိုခြင်း
     window.startCall = async () => {
       const targetID = document.getElementById("targetIDInput").value.trim();
-      if (!targetID) return alert("ခေါ်ဆိုလိုသော သူငယ်ချင်း ID ရိုက်ထည့်ပါ!");
+      if (!targetID) return alert("ခေါ်ဆိုလိုသော သူငယ်ချင်း ID ကို ရိုက်ထည့်ပါ!");
+
+      // မိမိ ကင်မရာ ဖွင့်မည်
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        document.getElementById("localVideo").srcObject = localStream;
+      } catch(err) {
+        return alert("ကင်မရာ သို့မဟုတ် မိုက်ခရိုဖုန်း အသုံးပြုခွင့် ပိတ်ထားပါသည်။");
+      }
 
       document.getElementById("videoCallOverlay").style.display = "flex";
-      document.getElementById("callStatusText").innerText = "ဖုန်းခေါ်ဆိုနေသည်...";
+      document.getElementById("callStatusText").innerText = "ဖုန်းခေါ်ဆိုနေသည်... ခေတ္တစောင့်ပါ";
       document.getElementById("acceptCallBtn").style.display = "none";
 
-      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      document.getElementById("localVideo").srcObject = localStream;
-
-      // Create Signal to Target User
+      // Firestore Database သို့ Signal ပို့လိုက်မည် (တစ်ဖက်လူ ဖုန်းဝင်အောင်)
       await setDoc(doc(db, "calls", targetID), {
         callerID: currentUser.userID,
         callerName: currentUser.name,
-        targetID: targetID,
-        status: "offering"
+        status: "calling",
+        timestamp: serverTimestamp()
       });
     };
 
-    // 3. Accept Incoming Call (ဝင်လာသောဖုန်းကို ကိုင်ခြင်း)
+    // ၃။ ဝင်လာသော ဖုန်းကို လက်ခံကိုင်ခြင်း (Accept Call)
     window.acceptIncomingCall = async () => {
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        document.getElementById("localVideo").srcObject = localStream;
+      } catch(err) {
+        return alert("ကင်မရာ ဖွင့်မရပါ။");
+      }
+
       document.getElementById("acceptCallBtn").style.display = "none";
-      document.getElementById("callStatusText").innerText = "ချိတ်ဆက်လိုက်ပါပြီ";
-
-      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      document.getElementById("localVideo").srcObject = localStream;
-
-      // Set Remote Video stream to show partner
-      document.getElementById("remoteVideo").srcObject = localStream; 
+      document.getElementById("callStatusText").innerText = "ဗီဒီယို ဖုန်းခေါ်ဆိုမှု စတင်ပါပြီ";
+      
+      // Demo Display: Remote Video နေရာတွင် Stream ပြပေးခြင်း
+      document.getElementById("remoteVideo").srcObject = localStream;
     };
 
-    // 4. End Call (ဖုန်းချခြင်း)
+    // ၄။ ဖုန်းချခြင်း (End Call)
     window.endCall = async () => {
       if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
       }
+      
+      const targetID = document.getElementById("targetIDInput").value.trim();
       if (currentUser) {
         await deleteDoc(doc(db, "calls", currentUser.userID)).catch(() => {});
       }
+      if (targetID) {
+        await deleteDoc(doc(db, "calls", targetID)).catch(() => {});
+      }
+      
       document.getElementById("videoCallOverlay").style.display = "none";
     };
   </script>
 </body>
         </html>
-      
+  
