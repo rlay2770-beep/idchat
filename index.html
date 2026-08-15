@@ -78,21 +78,17 @@
   <!-- Welcome Modal -->
   <div id="welcomeModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; justify-content:center; align-items:center; z-index:9999; backdrop-filter: blur(3px);">
     <div style="background:white; padding:24px; border-radius:18px; width:85%; max-width:340px; text-align:center; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
-      
       <h3 style="margin-top:0; color:#0084ff; font-size:20px;">Welcome to IDChat! 👋</h3>
-      
       <p style="font-size:13px; color:#555; line-height:1.5; margin-bottom:15px;">
         📞 Normal Phone Call နဲ့ SMS တွေမှာ ပိုက်ဆံတွေ အမြဲကုန်လို့ စိတ်ညစ်နေပါသလား?<br><br>
         ဒါဆိုရင်တော့ <b>IDChat</b> ကို အသုံးပြုကြည့်ပါ။ ပိုက်ဆံတစ်ပြားမှ မကုန်ဘဲ လွတ်လပ်စွာ ဆက်သွယ်နိုင်မယ့် အကောင်းဆုံး နည်းလမ်းတစ်ခု ဖြစ်ပါတယ်။
       </p>
-
       <div style="background:#f0f7ff; padding:12px; border-radius:10px; text-align:left; font-size:13px; line-height:1.6; color:#333; margin-bottom:15px;">
         <b>✨ ပြုလုပ်ရန် လွယ်ကူသော နည်းလမ်း -</b><br>
         ၁။ မိမိကြိုက်နှစ်သက်ရာ Name နဲ့ Password ဖြည့်ပြီး အကောင့်ဝင်ပါ။<br>
         ၂။ မိမိရဲ့ ID ကို သူငယ်ချင်းထံ ပေးပို့ပါ။<br>
         ၃။ သူငယ်ချင်း ID ကို ရိုက်ထည့်ပြီး Video Call / Chat စိတ်ကြိုက် အခမဲ့ အသုံးပြုနိုင်ပါပြီ!
       </div>
-
       <button onclick="document.getElementById('welcomeModal').style.display='none'" style="width:100%; padding:12px; background:#0084ff; color:white; border:none; border-radius:10px; font-weight:bold; font-size:15px; cursor:pointer;">
         စတင်အသုံးပြုမည်
       </button>
@@ -102,12 +98,10 @@
   <!-- Video Call Overlay Screen -->
   <div class="video-call-overlay" id="videoCallOverlay">
     <h3 style="color: white; margin-top: 10px;" id="callStatusText">Video Call ခေါ်ဆိုနေသည်...</h3>
-    
     <div class="video-container">
       <video id="remoteVideo" class="remote-video" autoplay playsinline></video>
       <video id="localVideo" class="local-video" autoplay playsinline muted></video>
     </div>
-
     <div class="call-controls">
       <button class="call-action-btn btn-accept-call" id="acceptCallBtn" onclick="acceptIncomingCall()" style="display: none;">📞</button>
       <button class="call-action-btn btn-end-call" onclick="endCall()">📵</button>
@@ -150,7 +144,7 @@
       </div>
     </div>
 
-    <!-- AI Learning Tab Section (Dual AI Integration) -->
+    <!-- AI Learning Tab Section -->
     <div id="aiTab" class="content-section">
       <div class="ai-switcher">
         <button class="ai-selector-btn active" onclick="switchAI('aiFrame1', this)">🇬🇧 English AI</button>
@@ -164,7 +158,7 @@
 
   </div>
 
-  <!-- Firebase SDK -->
+  <!-- Firebase & Core App Logic -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -200,7 +194,7 @@
       ]
     };
 
-    // Tab Switching Logic
+    // UI Tab & AI Switcher
     window.switchTab = (tabId, element) => {
       document.querySelectorAll('.content-section').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
@@ -208,7 +202,6 @@
       element.classList.add('active');
     };
 
-    // AI Switcher Logic
     window.switchAI = (frameId, element) => {
       document.querySelectorAll('.ai-frame').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.ai-selector-btn').forEach(el => el.classList.remove('active'));
@@ -216,7 +209,6 @@
       element.classList.add('active');
     };
 
-    // Notification Permission Request
     function requestNotificationPermission() {
       if ("Notification" in window) {
         Notification.requestPermission();
@@ -232,7 +224,6 @@
       }
     }
 
-    // --- Audio Sound Synthesizer (Ringtone) ---
     function playRingtone() {
       try {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -273,20 +264,29 @@
       const pass = document.getElementById("regPass").value.trim();
       if (!name || !pass) return alert("အမည်နှင့် စကားဝှက် ရိုက်ထည့်ပါ!");
 
-      const userID = await generateUniqueID();
-      await setDoc(doc(db, "users", userID), { userID, name, password: pass, createdAt: serverTimestamp() });
-      alert(`အကောင့် အောင်မြင်စွာ ဖန်တီးပြီးပါပြီ!\nသင့်၏ ပုံသေ ID: ${userID}`);
-      loginSuccess(userID, name);
+      try {
+        const userID = await generateUniqueID();
+        await setDoc(doc(db, "users", userID), { userID, name, password: pass, createdAt: serverTimestamp() });
+        alert(`အကောင့် အောင်မြင်စွာ ဖန်တီးပြီးပါပြီ!\nသင့်၏ ပုံသေ ID: ${userID}`);
+        loginSuccess(userID, name);
+      } catch (err) {
+        alert("အကောင့်ဖွင့်ရာတွင် အမှားတစ်ခု ဖြစ်ပေါ်နေပါသည်။");
+      }
     };
 
+    // Fix applied for Login bug
     window.handleLogin = async () => {
       const userID = document.getElementById("loginID").value.trim();
       if (!userID) return alert("ID ရိုက်ထည့်ပါ!");
-      const docSnap = await getDoc(doc(doc(db, "users", userID)));
-      if (docSnap.exists()) {
-        loginSuccess(userID, docSnap.data().name);
-      } else {
-        alert("ဤ ID ဖြင့် အကောင့်မရှိပါ!");
+      try {
+        const docSnap = await getDoc(doc(db, "users", userID));
+        if (docSnap.exists()) {
+          loginSuccess(userID, docSnap.data().name);
+        } else {
+          alert("ဤ ID ဖြင့် အကောင့်မရှိပါ။ 'အကောင့်အသစ်ဖွင့်မည်' ကို အရင်ပြုလုပ်ပေးပါ!");
+        }
+      } catch (err) {
+        alert("Login ဝင်ရာတွင် အမှားတစ်ခု ဖြစ်ပေါ်နေပါသည်။");
       }
     };
 
@@ -295,8 +295,6 @@
       document.getElementById("myIDDisplay").innerText = userID;
       document.getElementById("userNameDisplay").innerText = name;
       document.getElementById("authModal").style.display = "none";
-      
-      // Login အောင်မြင်ပါက Welcome Modal ပြသမည်
       document.getElementById("welcomeModal").style.display = "flex";
 
       requestNotificationPermission();
@@ -342,7 +340,7 @@
       });
     };
 
-    // --- WebRTC Video Call Core ---
+    // --- WebRTC Functions ---
     function createPeerConnection(targetID) {
       peerConnection = new RTCPeerConnection(rtcConfig);
 
@@ -365,7 +363,6 @@
       onSnapshot(doc(db, "calls", currentUser.userID), async (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data();
-          
           if (data && data.offer && !peerConnection) {
             incomingCallData = data;
             activeCallTargetID = data.callerID;
@@ -384,7 +381,7 @@
       });
     }
 
-    window.startCall = async () => {
+     window.startCall = async () => {
       const targetID = document.getElementById("targetIDInput").value.trim();
       if (!targetID) return alert("ခေါ်ဆိုလိုသော သူငယ်ချင်း ID ကို ရိုက်ထည့်ပါ!");
 
@@ -413,7 +410,7 @@
         offer: { type: offer.type, sdp: offer.sdp }
       });
 
-      onSnapshot(doc(doc(db, "calls", targetID)), async (snapshot) => {
+      onSnapshot(doc(db, "calls", targetID), async (snapshot) => {
         if (!snapshot.exists()) {
           resetCallState();
           return;
