@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IDChat - Real-Time Video Call</title>
+  <title>IDChat - Real WebRTC Video Call</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
     body { background-color: #f0f2f5; display: flex; justify-content: center; height: 100vh; }
@@ -34,7 +34,7 @@
     /* Video Call Overlay Screen */
     .video-call-overlay { display: none; position: fixed; inset: 0; background: #111; z-index: 2000; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px; }
     .video-container { width: 100%; height: 75%; position: relative; background: #222; border-radius: 15px; overflow: hidden; display: flex; justify-content: center; align-items: center; }
-    .local-video { width: 100px; height: 140px; background: #000; border: 2px solid #fff; border-radius: 10px; position: absolute; top: 10px; right: 10px; object-fit: cover; }
+    .local-video { width: 100px; height: 140px; background: #000; border: 2px solid #fff; border-radius: 10px; position: absolute; top: 10px; right: 10px; object-fit: cover; z-index: 10; }
     .remote-video { width: 100%; height: 100%; object-fit: cover; }
     .call-controls { display: flex; gap: 20px; margin-bottom: 20px; }
     .call-action-btn { width: 60px; height: 60px; border-radius: 50%; border: none; font-size: 24px; color: white; cursor: pointer; display: flex; justify-content: center; align-items: center; }
@@ -104,7 +104,7 @@
   <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyD81JR9IoFkwGbkq0UWQ4aqfgwwpvLg668",
@@ -122,7 +122,18 @@
     let currentUser = null;
     let currentChatID = null;
     let unsubscribeChat = null;
+    
     let localStream = null;
+    let remoteStream = null;
+    let peerConnection = null;
+    let incomingCallData = null;
+
+    const rtcConfig = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    };
 
     async function generateUniqueID() {
       let isUnique = false, newID = "";
@@ -162,7 +173,6 @@
       document.getElementById("userNameDisplay").innerText = name;
       document.getElementById("authModal").style.display = "none";
       
-      // Login ဝင်လိုက်တာနဲ့ Incoming Call ကို စတင်စောင့်ကြည့်မည်
       listenForIncomingCalls();
     }
 
@@ -205,33 +215,53 @@
       });
     };
 
-    // --- REALTIME CALL SIGNALING SYSTEM ---
+    // --- WebRTC Video Call Functions ---
 
-    // ၁။ မိမိဆီသို့ ဖုန်းဝင်လာပါက တန်းပေါ်စေသည့် Listener စနစ်
+    function createPeerConnection(targetID) {
+      peerConnection = new RTCPeerConnection(rtcConfig);
+
+      // Local stream tracks ထည့်သွင်းခြင်း
+      localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+      });
+
+      // Remote stream လက်ခံရရှိချိန်တွင် video element ထဲသို့ ထည့်ရန်
+      peerConnection.ontrack = (event) => {
+        document.getElementById("remoteVideo").srcObject = event.streams[0];
+      };
+
+      // ICE Candidates များကို Firestore မှတစ်ဆင့် လဲလှယ်ခြင်း
+      peerConnection.onicecandidate = async (event) => {
+        if (event.candidate) {
+          await addDoc(collection(db, "calls", targetID, "candidates"), event.candidate.toJSON());
+        }
+      };
+    }
+
+    // ၁။ ဖုန်းဝင်လာခြင်းကို စောင့်ကြည့်ခြင်း
     function listenForIncomingCalls() {
-      onSnapshot(doc(db, "calls", currentUser.userID), (snapshot) => {
+      onSnapshot(doc(db, "calls", currentUser.userID), async (snapshot) => {
         if (snapshot.exists()) {
-          const callData = snapshot.data();
-          if (callData && callData.status === "calling") {
-            // ဖုန်းဝင်လာပါက Video Call Overlay တန်းဖွင့်မည်
+          const data = snapshot.data();
+          if (data && data.offer && !peerConnection) {
+            incomingCallData = data;
             document.getElementById("videoCallOverlay").style.display = "flex";
-            document.getElementById("callStatusText").innerText = `${callData.callerName} (ID: ${callData.callerID}) ထံမှ Video Call ဝင်လာပါသည်...`;
+            document.getElementById("callStatusText").innerText = `${data.callerName} ထံမှ Video Call ဝင်လာပါသည်...`;
             document.getElementById("acceptCallBtn").style.display = "flex";
           }
         }
       });
     }
 
-    // ၂။ တစ်ဖက်လူဆီသို့ ဖုန်းစတင်ခေါ်ဆိုခြင်း
+    // ၂။ ဖုန်းစတင်ခေါ်ဆိုခြင်း (Caller)
     window.startCall = async () => {
       const targetID = document.getElementById("targetIDInput").value.trim();
       if (!targetID) return alert("ခေါ်ဆိုလိုသော သူငယ်ချင်း ID ကို ရိုက်ထည့်ပါ!");
 
-      // မိမိ ကင်မရာ ဖွင့်မည်
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         document.getElementById("localVideo").srcObject = localStream;
-      } catch(err) {
+      } catch (err) {
         return alert("ကင်မရာ သို့မဟုတ် မိုက်ခရိုဖုန်း အသုံးပြုခွင့် ပိတ်ထားပါသည်။");
       }
 
@@ -239,29 +269,84 @@
       document.getElementById("callStatusText").innerText = "ဖုန်းခေါ်ဆိုနေသည်... ခေတ္တစောင့်ပါ";
       document.getElementById("acceptCallBtn").style.display = "none";
 
-      // Firestore Database သို့ Signal ပို့လိုက်မည် (တစ်ဖက်လူ ဖုန်းဝင်အောင်)
+      createPeerConnection(targetID);
+
+      // WebRTC Offer ဖန်တီးခြင်း
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+
+      // Firestore တွင် Offer သိမ်းဆည်းခြင်း
       await setDoc(doc(db, "calls", targetID), {
         callerID: currentUser.userID,
         callerName: currentUser.name,
-        status: "calling",
-        timestamp: serverTimestamp()
+        offer: { type: offer.type, sdp: offer.sdp }
+      });
+
+      // Callee ပြန်ပေးမည့် Answer ကို စောင့်ကြည့်ခြင်း
+      onSnapshot(doc(db, "calls", targetID), async (snapshot) => {
+        const data = snapshot.data();
+        if (data && data.answer && peerConnection && !peerConnection.currentRemoteDescription) {
+          const remoteDesc = new RTCSessionDescription(data.answer);
+          await peerConnection.setRemoteDescription(remoteDesc);
+          document.getElementById("callStatusText").innerText = "ချိတ်ဆက်သွားပါပြီ";
+        }
+      });
+
+      // ICE Candidates များကို နားထောင်ခြင်း
+      const candidatesCol = collection(db, "calls", currentUser.userID, "candidates");
+      onSnapshot(candidatesCol, (snapshot) => {
+        snapshot.docChanges().forEach(async (change) => {
+          if (change.type === "added") {
+            const candidate = new RTCIceCandidate(change.doc.data());
+            if (peerConnection) {
+              await peerConnection.addIceCandidate(candidate).catch(() => {});
+            }
+          }
+        });
       });
     };
 
-    // ၃။ ဝင်လာသော ဖုန်းကို လက်ခံကိုင်ခြင်း (Accept Call)
+    // ၃။ ဝင်လာသောဖုန်းကို လက်ခံခြင်း (Callee)
     window.acceptIncomingCall = async () => {
+      document.getElementById("acceptCallBtn").style.display = "none";
+      document.getElementById("callStatusText").innerText = "ချိတ်ဆက်နေသည်...";
+
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         document.getElementById("localVideo").srcObject = localStream;
-      } catch(err) {
+      } catch (err) {
         return alert("ကင်မရာ ဖွင့်မရပါ။");
       }
 
-      document.getElementById("acceptCallBtn").style.display = "none";
+      const callerID = incomingCallData.callerID;
+      createPeerConnection(callerID);
+
+      // Offer ကို Remote Description အဖြစ် သတ်မှတ်ခြင်း
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingCallData.offer));
+
+      // Answer ဖန်တီးခြင်း
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+
+      // Firestore သို့ Answer ပြန်ပို့ခြင်း
+      await updateDoc(doc(db, "calls", currentUser.userID), {
+        answer: { type: answer.type, sdp: answer.sdp }
+      });
+
+      // ICE Candidates များကို နားထောင်ခြင်း
+      const candidatesCol = collection(db, "calls", callerID, "candidates");
+      onSnapshot(candidatesCol, (snapshot) => {
+        snapshot.docChanges().forEach(async (change) => {
+          if (change.type === "added") {
+            const candidate = new RTCIceCandidate(change.doc.data());
+            if (peerConnection) {
+              await peerConnection.addIceCandidate(candidate).catch(() => {});
+            }
+          }
+        });
+      });
+
       document.getElementById("callStatusText").innerText = "ဗီဒီယို ဖုန်းခေါ်ဆိုမှု စတင်ပါပြီ";
-      
-      // Demo Display: Remote Video နေရာတွင် Stream ပြပေးခြင်း
-      document.getElementById("remoteVideo").srcObject = localStream;
     };
 
     // ၄။ ဖုန်းချခြင်း (End Call)
@@ -269,18 +354,19 @@
       if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
       }
+      if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+      }
       
-      const targetID = document.getElementById("targetIDInput").value.trim();
       if (currentUser) {
         await deleteDoc(doc(db, "calls", currentUser.userID)).catch(() => {});
       }
-      if (targetID) {
-        await deleteDoc(doc(db, "calls", targetID)).catch(() => {});
-      }
       
       document.getElementById("videoCallOverlay").style.display = "none";
+      location.reload(); // စာမျက်နှာကို ပြန်လည် Refresh လုပ်ပေးခြင်းဖြင့် Call State ရှင်းလင်းသွားမည်
     };
   </script>
 </body>
-        </html>
+  </html>
   
