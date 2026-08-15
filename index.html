@@ -3,2134 +3,289 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <title>IDChat - Direct Media & Calls</title>
-
+  <title>IDChat - Direct Media & Video Call</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: "Segoe UI", sans-serif;
-    }
-
-    body {
-      background: #f0f2f5;
-      display: flex;
-      justify-content: center;
-      height: 100vh;
-    }
-
-    .app-container {
-      width: 100%;
-      max-width: 480px;
-      background: #fff;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      box-shadow: 0 0 15px rgba(0,0,0,.1);
-    }
-
-    /* HEADER */
-
-    .header {
-      background: #0084ff;
-      color: white;
-      padding: 15px;
-      text-align: center;
-      font-size: 18px;
-      font-weight: bold;
-
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .user-card {
-      background: #e7f3ff;
-      padding: 10px 15px;
-      font-size: 14px;
-      color: #0084ff;
-
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-
-      border-bottom: 1px solid #cce5ff;
-    }
-
-    /* LOGIN */
-
-    .auth-overlay {
-      position: fixed;
-      inset: 0;
-
-      background: rgba(0,0,0,.6);
-
-      display: flex;
-      justify-content: center;
-      align-items: center;
-
-      z-index: 100;
-    }
-
-    .auth-box {
-      background: white;
-      padding: 25px;
-      border-radius: 12px;
-
-      width: 85%;
-      max-width: 320px;
-
-      text-align: center;
-    }
-
-    .auth-box input {
-      width: 100%;
-
-      padding: 10px;
-      margin: 8px 0;
-
-      border: 1px solid #ccc;
-      border-radius: 6px;
-    }
-
-    .auth-box button {
-      width: 100%;
-
-      padding: 10px;
-
-      background: #0084ff;
-      color: white;
-
-      border: none;
-      border-radius: 6px;
-
-      font-weight: bold;
-      cursor: pointer;
-
-      margin-top: 5px;
-    }
-
-    /* SEARCH */
-
-    .search-box {
-      padding: 10px;
-
-      border-bottom: 1px solid #eee;
-
-      display: flex;
-      gap: 5px;
-
-      background: #fafafa;
-    }
-
-    .search-box input {
-      flex: 1;
-
-      padding: 8px 12px;
-
-      border: 1px solid #ddd;
-      border-radius: 20px;
-
-      outline: none;
-    }
-
-    .search-box button {
-      padding: 8px 15px;
-
-      background: #28a745;
-      color: white;
-
-      border: none;
-
-      border-radius: 20px;
-
-      cursor: pointer;
-
-      font-weight: bold;
-    }
-
-    /* STATUS */
-
-    .status-bar {
-      text-align: center;
-
-      font-size: 12px;
-
-      color: #856404;
-
-      padding: 7px;
-
-      background: #fff3cd;
-
-      display: none;
-    }
-
-    /* CHAT */
-
-    .chat-area {
-      flex: 1;
-
-      overflow-y: auto;
-
-      padding: 15px;
-
-      display: flex;
-
-      flex-direction: column;
-
-      gap: 10px;
-
-      background: #f4f6f8;
-    }
-
-    .message {
-      max-width: 75%;
-
-      padding: 10px 14px;
-
-      border-radius: 15px;
-
-      font-size: 14px;
-
-      line-height: 1.4;
-
-      word-break: break-word;
-    }
-
-    .message.sent {
-      background: #0084ff;
-
-      color: white;
-
-      align-self: flex-end;
-
-      border-bottom-right-radius: 2px;
-    }
-
-    .message.received {
-      background: white;
-
-      color: #333;
-
-      align-self: flex-start;
-
-      border-bottom-left-radius: 2px;
-
-      box-shadow: 0 1px 3px rgba(0,0,0,.1);
-    }
-
-    .message img {
-      max-width: 100%;
-
-      border-radius: 10px;
-
-      margin-top: 5px;
-
-      display: block;
-
-      cursor: pointer;
-    }
-
-    .message video {
-      width: 100%;
-
-      max-width: 250px;
-
-      border-radius: 10px;
-
-      margin-top: 5px;
-
-      display: block;
-    }
-
-    /* MEDIA LOADING */
-
-    .media-loading {
-      font-size: 12px;
-
-      opacity: .8;
-
-      margin-top: 5px;
-    }
-
-    .progress {
-      width: 150px;
-
-      height: 6px;
-
-      background: rgba(0,0,0,.15);
-
-      border-radius: 10px;
-
-      overflow: hidden;
-
-      margin-top: 5px;
-    }
-
-    .progress-bar {
-      height: 100%;
-
-      width: 0%;
-
-      background: #28a745;
-    }
-
-    /* INPUT */
-
-    .input-area {
-      padding: 10px;
-
-      border-top: 1px solid #eee;
-
-      display: flex;
-
-      gap: 8px;
-
-      align-items: center;
-
-      background: white;
-    }
-
-    .input-area input[type="text"] {
-      flex: 1;
-
-      padding: 10px 15px;
-
-      border: 1px solid #ddd;
-
-      border-radius: 20px;
-
-      outline: none;
-    }
-
-    .input-area button {
-      background: #0084ff;
-
-      color: white;
-
-      border: none;
-
-      width: 40px;
-
-      height: 40px;
-
-      border-radius: 50%;
-
-      cursor: pointer;
-
-      font-size: 16px;
-
-      flex-shrink: 0;
-    }
-
-    .media-btn {
-      cursor: pointer;
-
-      font-size: 22px;
-
-      padding: 0 4px;
-    }
-
-    .call-btn {
-      background: #28a745;
-
-      color: white;
-
-      border: none;
-
-      padding: 5px 12px;
-
-      border-radius: 15px;
-
-      font-size: 13px;
-
-      cursor: pointer;
-    }
-
-    /* CALL */
-
-    .call-overlay {
-      display: none;
-
-      position: fixed;
-
-      inset: 0;
-
-      background: #111;
-
-      color: white;
-
-      flex-direction: column;
-
-      justify-content: center;
-
-      align-items: center;
-
-      z-index: 200;
-
-      text-align: center;
-    }
-
-    .call-btn-group {
-      display: flex;
-
-      gap: 20px;
-
-      margin-top: 30px;
-    }
-
-    .end-call-btn {
-      width: 60px;
-
-      height: 60px;
-
-      border-radius: 50%;
-
-      border: none;
-
-      background: #dc3545;
-
-      color: white;
-
-      font-size: 24px;
-
-      cursor: pointer;
-    }
-
-    /* MOBILE */
-
-    @media(max-width:480px) {
-
-      .message {
-        max-width: 82%;
-      }
-
-      .header {
-        font-size: 16px;
-      }
-
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #f0f2f5; display: flex; justify-content: center; height: 100vh; }
+    .app-container { width: 100%; max-width: 480px; background: #fff; display: flex; flex-direction: column; height: 100vh; box-shadow: 0 0 15px rgba(0,0,0,0.1); position: relative; }
+    
+    /* Header & Top Bar */
+    .header { background: #0084ff; color: white; padding: 12px 15px; text-align: center; font-size: 18px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+    .call-btn { background: #28a745; color: white; border: none; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+    .user-card { background: #e7f3ff; padding: 8px 15px; font-size: 13px; color: #0084ff; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #cce5ff; }
+    
+    /* Auth Overlay */
+    .auth-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+    .auth-box { background: white; padding: 25px; border-radius: 12px; width: 85%; max-width: 320px; text-align: center; }
+    .auth-box input { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; }
+    .auth-box button { width: 100%; padding: 10px; background: #0084ff; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 5px; }
+
+    /* Search & Chat Area */
+    .search-box { padding: 10px; border-bottom: 1px solid #eee; display: flex; gap: 5px; background: #fafafa; }
+    .search-box input { flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 20px; outline: none; }
+    .search-box button { padding: 8px 15px; background: #0084ff; color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; }
+
+    .chat-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #f4f6f8; }
+    .message { max-width: 75%; padding: 10px 14px; border-radius: 15px; font-size: 14px; line-height: 1.4; word-break: break-word; }
+    .message.sent { background: #0084ff; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+    .message.received { background: #ffffff; color: #333; align-self: flex-start; border-bottom-left-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .message img { max-width: 100%; border-radius: 10px; margin-top: 5px; display: block; cursor: pointer; }
+    
+    .status-bar { text-align: center; font-size: 12px; color: #856404; padding: 6px; background: #fff3cd; display: none; }
+
+    /* Input Controls */
+    .input-area { padding: 10px; border-top: 1px solid #eee; display: flex; gap: 8px; align-items: center; background: white; }
+    .input-area input[type="text"] { flex: 1; padding: 10px 15px; border: 1px solid #ddd; border-radius: 20px; outline: none; }
+    .input-area button { background: #0084ff; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 16px; flex-shrink: 0; }
+    .media-btn { cursor: pointer; font-size: 22px; padding: 0 4px; }
+
+    /* Real-Time Video Call Screen */
+    .video-call-overlay { display: none; position: fixed; inset: 0; background: #111; z-index: 2000; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px; }
+    .video-container { width: 100%; height: 75%; position: relative; background: #222; border-radius: 15px; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+    .local-video { width: 100px; height: 140px; background: #000; border: 2px solid #fff; border-radius: 10px; position: absolute; top: 10px; right: 10px; object-fit: cover; }
+    .remote-video { width: 100%; height: 100%; object-fit: cover; }
+    .call-controls { display: flex; gap: 25px; margin-bottom: 20px; }
+    .call-action-btn { width: 60px; height: 60px; border-radius: 50%; border: none; font-size: 24px; color: white; cursor: pointer; display: flex; justify-content: center; align-items: center; }
+    .btn-end-call { background: #dc3545; }
   </style>
 </head>
-
 <body>
 
-  <!-- =========================
-       LOGIN
-  ========================== -->
-
+  <!-- Auth Modal -->
   <div class="auth-overlay" id="authModal">
-
     <div class="auth-box">
-
-      <h3 style="color:#0084ff;margin-bottom:5px;">
-        IDChat
-      </h3>
-
-      <p style="font-size:12px;color:#666;margin-bottom:15px;">
-        Privacy အပြည့်ဖြင့် ဆက်သွယ်ပါ
-      </p>
-
-      <input
-        type="text"
-        id="regName"
-        placeholder="သင့်အမည်"
-      >
-
-      <input
-        type="password"
-        id="regPass"
-        placeholder="စကားဝှက် သတ်မှတ်ပါ"
-      >
-
-      <button onclick="handleRegister()">
-        အကောင့်အသစ်ဖွင့်မည်
-      </button>
-
-      <hr
-        style="
-        margin:15px 0;
-        border:none;
-        border-top:1px solid #eee;
-        "
-      >
-
-      <input
-        type="text"
-        id="loginID"
-        placeholder="သင့် ID ဥပမာ 343696"
-      >
-
-      <button
-        onclick="handleLogin()"
-        style="background:#6c757d;"
-      >
-        ID ဖြင့် Login ဝင်မည်
-      </button>
-
+      <h3 style="color: #0084ff; margin-bottom: 5px;">IDChat</h3>
+      <p style="font-size: 12px; color: #666; margin-bottom: 15px;">Privacy အပြည့်ဖြင့် အခမဲ့ ဆက်သွယ်ပါ</p>
+      <input type="text" id="regName" placeholder="သင့်အမည်">
+      <input type="password" id="regPass" placeholder="စကားဝှက် သတ်မှတ်ပါ">
+      <button onclick="handleRegister()">အကောင့်အသစ်ဖွင့်မည်</button>
+      <hr style="margin: 15px 0; border: none; border-top: 1px solid #eee;">
+      <input type="text" id="loginID" placeholder="သင့် ပုံသေ ID (ဥပမာ: 343696)">
+      <button onclick="handleLogin()" style="background: #6c757d;">ID ဖြင့် Login ဝင်မည်</button>
     </div>
   </div>
 
-
-  <!-- =========================
-       VIDEO CALL
-  ========================== -->
-
-  <div
-    class="call-overlay"
-    id="callOverlay"
-  >
-
-    <h3 id="callTargetName">
-      Video Call ခေါ်ဆိုနေသည်...
-    </h3>
-
-    <p style="color:#aaa;margin-top:10px;">
-      ချိတ်ဆက်နေသည်...
-    </p>
-
-    <div class="call-btn-group">
-
-      <button
-        class="end-call-btn"
-        onclick="endCall()"
-      >
-        📵
-      </button>
-
+  <!-- Real Video Call Screen -->
+  <div class="video-call-overlay" id="videoCallOverlay">
+    <h3 style="color: white; margin-top: 10px;" id="callStatusTitle">Video Call ခေါ်ဆိုနေသည်...</h3>
+    
+    <div class="video-container">
+      <!-- Remote Video (သူငယ်ချင်း ရုပ်သံ) -->
+      <video id="remoteVideo" class="remote-video" autoplay playsinline></video>
+      <!-- Local Video (မိမိ ရုပ်သံ သေးသေးလေး) -->
+      <video id="localVideo" class="local-video" autoplay playsinline muted></video>
     </div>
 
+    <div class="call-controls">
+      <button class="call-action-btn btn-end-call" onclick="closeVideoCall()" title="ဖုန်းချမည်">📵</button>
+    </div>
   </div>
-
-
-  <!-- =========================
-       APP
-  ========================== -->
 
   <div class="app-container">
-
     <div class="header">
-
-      <span>
-        IDChat
-      </span>
-
-      <button
-        class="call-btn"
-        onclick="startVideoCall()"
-      >
-        📞 Video Call
-      </button>
-
+      <span>IDChat</span>
+      <button class="call-btn" onclick="openVideoCall()">📹 Video Call</button>
     </div>
-
-
+    
     <div class="user-card">
-
-      <span>
-        မိမိ ID:
-        <b id="myIDDisplay">-</b>
-      </span>
-
-      <span id="userNameDisplay">
-        -
-      </span>
-
+      <span>မိမိ ID: <b id="myIDDisplay">-</b></span>
+      <span id="userNameDisplay">-</span>
     </div>
-
-
-    <!-- FRIEND ID -->
 
     <div class="search-box">
-
-      <input
-        type="text"
-        id="targetIDInput"
-        placeholder="သူငယ်ချင်း၏ ID ရိုက်ထည့်ပါ"
-      >
-
-      <button onclick="connectChat()">
-        စကားပြောမည်
-      </button>
-
+      <input type="text" id="targetIDInput" placeholder="သူငယ်ချင်း၏ ID ရိုက်ထည့်ပါ">
+      <button onclick="connectChat()">စကားပြောမည်</button>
     </div>
 
+    <div class="status-bar" id="statusBar">ဓာတ်ပုံ ပို့နေပါသည်...</div>
 
-    <!-- STATUS -->
-
-    <div
-      class="status-bar"
-      id="statusBar"
-    >
-      Processing...
-    </div>
-
-
-    <!-- CHAT -->
-
-    <div
-      class="chat-area"
-      id="chatArea"
-    >
-
-      <div
-        style="
-        text-align:center;
-        color:#999;
-        margin-top:30px;
-        font-size:13px;
-        "
-      >
-
-        သူငယ်ချင်း ID ကို ရိုက်ထည့်ပြီး
-        စာ/ပုံ/ဗီဒီယိုများ
-        စတင်ပို့နိုင်ပါပြီ
-
+    <div class="chat-area" id="chatArea">
+      <div style="text-align: center; color: #999; margin-top: 30px; font-size: 13px;">
+        သူငယ်ချင်း ID ကို ရိုက်ထည့်ပြီး စာနှင့် ဓာတ်ပုံများ ပို့နိုင်ပါပြီ
       </div>
-
     </div>
-
-
-    <!-- INPUT -->
 
     <div class="input-area">
+      <!-- Image Upload Icon -->
+      <span class="media-btn" onclick="document.getElementById('imageInput').click()" title="ဓာတ်ပုံ ပို့မည်">📷</span>
+      <input type="file" id="imageInput" accept="image/*" style="display: none;">
 
-      <!-- IMAGE -->
-
-      <span
-        class="media-btn"
-        onclick="
-          document.getElementById('imageInput').click()
-        "
-        title="ပုံပို့မည်"
-      >
-        📷
-      </span>
-
-      <input
-        type="file"
-        id="imageInput"
-        accept="image/*"
-        style="display:none;"
-      >
-
-
-      <!-- VIDEO -->
-
-      <span
-        class="media-btn"
-        onclick="
-          document.getElementById('videoInput').click()
-        "
-        title="ဗီဒီယိုပို့မည်"
-      >
-        🎥
-      </span>
-
-      <input
-        type="file"
-        id="videoInput"
-        accept="video/*"
-        style="display:none;"
-      >
-
-
-      <!-- TEXT -->
-
-      <input
-        type="text"
-        id="msgInput"
-        placeholder="စာရိုက်ပါ..."
-      >
-
-      <button
-        onclick="sendTextMessage()"
-      >
-        ➤
-      </button>
-
+      <input type="text" id="msgInput" placeholder="စာရိုက်ပါ..." onkeypress="if(event.key==='Enter') sendTextMessage()">
+      <button onclick="sendTextMessage()">➤</button>
     </div>
-
   </div>
 
-
-  <!-- IMPORTANT -->
-  <!-- Firebase logic is inside app.js -->
-
-  <script
-    type="module"
-    src="./app.js"
-  ></script>
-
-</body>
-  </html>
-  /* =========================================================
-   IDCHAT - FIRESTORE ONLY VERSION
-   Media files are divided into Firestore chunks.
-========================================================= */
-
-
-/* =========================================================
-   FIREBASE
-========================================================= */
-
-import {
-  initializeApp
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-
-import {
-  getFirestore,
-  doc,
-  setDoc,
-  getDoc,
-  collection,
-  addDoc,
-  query,
-  orderBy,
-  onSnapshot,
-  serverTimestamp,
-  getDocs,
-  deleteDoc
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-
-/* =========================================================
-   FIREBASE CONFIG
-========================================================= */
-
-const firebaseConfig = {
-
-  apiKey:
-    "AIzaSyD81JR9IoFkwGbkq0UWQ4aqfgwwpvLg668",
-
-  authDomain:
-    "idchat-2bc95.firebaseapp.com",
-
-  databaseURL:
-    "https://idchat-2bc95-default-rtdb.firebaseio.com",
-
-  projectId:
-    "idchat-2bc95",
-
-  storageBucket:
-    "idchat-2bc95.firebasestorage.app",
-
-  messagingSenderId:
-    "698756711127",
-
-  appId:
-    "1:698756711127:web:873c465228b2d0976fa692"
-};
-
-
-const app =
-  initializeApp(firebaseConfig);
-
-const db =
-  getFirestore(app);
-
-
-/* =========================================================
-   GLOBAL VARIABLES
-========================================================= */
-
-let currentUser = null;
-
-let currentChatID = null;
-
-let unsubscribeChat = null;
-
-
-/* =========================================================
-   FIRESTORE CHUNK SIZE
-=========================================================
-
-   Firestore document limit is about 1 MiB.
-
-   We intentionally use a much smaller chunk.
-
-========================================================= */
-
-const CHUNK_SIZE = 400000;
-
-
-/* =========================================================
-   FILE SIZE LIMIT
-=========================================================
-
-   Firestore-only media system ဖြစ်သောကြောင့်
-   အရမ်းကြီးတဲ့ Video မပို့သင့်ပါ။
-
-   5MB maximum.
-========================================================= */
-
-const MAX_VIDEO_SIZE =
-  5 * 1024 * 1024;
-
-
-/* =========================================================
-   FILE INPUT
-========================================================= */
-
-document
-  .getElementById("imageInput")
-  .addEventListener(
-    "change",
-    event => {
-
-      const file =
-        event.target.files[0];
-
-      processAndSendImage(file);
-
-    }
-  );
-
-
-document
-  .getElementById("videoInput")
-  .addEventListener(
-    "change",
-    event => {
-
-      const file =
-        event.target.files[0];
-
-      processAndSendVideo(file);
-
-    }
-  );
-
-
-/* =========================================================
-   GENERATE UNIQUE ID
-========================================================= */
-
-async function generateUniqueID() {
-
-  let isUnique = false;
-
-  let newID = "";
-
-  while (!isUnique) {
-
-    newID =
-      Math.floor(
-        100000 +
-        Math.random() * 900000
-      ).toString();
-
-    const userDoc =
-      await getDoc(
-        doc(
-          db,
-          "users",
-          newID
-        )
-      );
-
-    if (!userDoc.exists()) {
-
-      isUnique = true;
-
-    }
-
-  }
-
-  return newID;
-}
-
-
-/* =========================================================
-   REGISTER
-========================================================= */
-
-window.handleRegister =
-  async function () {
-
-    try {
-
-      const name =
-        document
-          .getElementById("regName")
-          .value
-          .trim();
-
-      const pass =
-        document
-          .getElementById("regPass")
-          .value
-          .trim();
-
-
-      if (!name || !pass) {
-
-        alert(
-          "အမည်နှင့် စကားဝှက် ရိုက်ထည့်ပါ!"
-        );
-
-        return;
-      }
-
-
-      const userID =
-        await generateUniqueID();
-
-
-      await setDoc(
-        doc(
-          db,
-          "users",
-          userID
-        ),
-        {
-
-          userID: userID,
-
-          name: name,
-
-          /*
-             သတိ:
-             Demo အတွက်သာ ထားထားခြင်း။
-             Production မှာ password ကို
-             plain text မသိမ်းသင့်ပါ။
-          */
-
-          password: pass,
-
-          createdAt:
-            serverTimestamp()
-
-        }
-      );
-
-
-      alert(
-        "အကောင့် အောင်မြင်စွာ ဖန်တီးပြီးပါပြီ!\n\n" +
-        "သင့် ID: " +
-        userID
-      );
-
-
-      loginSuccess(
-        userID,
-        name
-      );
-
-
-    } catch (error) {
-
-      console.error(error);
-
-      alert(
-        "Account ဖန်တီးရာတွင် Error ဖြစ်နေပါသည်။\n\n" +
-        error.message
-      );
-
-    }
-
-  };
-
-
-/* =========================================================
-   LOGIN
-========================================================= */
-
-window.handleLogin =
-  async function () {
-
-    try {
-
-      const userID =
-        document
-          .getElementById("loginID")
-          .value
-          .trim();
-
-
-      if (!userID) {
-
-        alert(
-          "ID ရိုက်ထည့်ပါ!"
-        );
-
-        return;
-      }
-
-
-      const userDoc =
-        await getDoc(
-          doc(
-            db,
-            "users",
-            userID
-          )
-        );
-
-
-      if (!userDoc.exists()) {
-
-        alert(
-          "ဤ ID ဖြင့် Account မရှိပါ!"
-        );
-
-        return;
-      }
-
-
-      const data =
-        userDoc.data();
-
-
-      loginSuccess(
-        userID,
-        data.name
-      );
-
-
-    } catch (error) {
-
-      console.error(error);
-
-      alert(
-        "Login Error: " +
-        error.message
-      );
-
-    }
-
-  };
-
-
-/* =========================================================
-   LOGIN SUCCESS
-========================================================= */
-
-function loginSuccess(
-  userID,
-  name
-) {
-
-  currentUser = {
-
-    userID: userID,
-
-    name: name
-
-  };
-
-
-  document
-    .getElementById("myIDDisplay")
-    .innerText = userID;
-
-
-  document
-    .getElementById("userNameDisplay")
-    .innerText = name;
-
-
-  document
-    .getElementById("authModal")
-    .style.display = "none";
-}
-
-
-/* =========================================================
-   CONNECT CHAT
-========================================================= */
-
-window.connectChat =
-  async function () {
-
-    if (!currentUser) {
-
-      alert(
-        "အရင် Login ဝင်ပါ!"
-      );
-
-      return;
-    }
-
-
-    const targetID =
-      document
-        .getElementById("targetIDInput")
-        .value
-        .trim();
-
-
-    if (
-      !targetID ||
-      targetID === currentUser.userID
-    ) {
-
-      alert(
-        "မှန်ကန်သော သူငယ်ချင်း ID ရိုက်ထည့်ပါ!"
-      );
-
-      return;
-    }
-
-
-    /* Check target user */
-
-    const targetDoc =
-      await getDoc(
-        doc(
-          db,
-          "users",
-          targetID
-        )
-      );
-
-
-    if (!targetDoc.exists()) {
-
-      alert(
-        "ထို ID ဖြင့် User မတွေ့ပါ!"
-      );
-
-      return;
-    }
-
-
-    currentChatID =
-      [
-        currentUser.userID,
-        targetID
-      ]
-      .sort()
-      .join("_");
-
-
-    loadMessages();
-
-  };
-
-
-/* =========================================================
-   LOAD MESSAGES
-========================================================= */
-
-function loadMessages() {
-
-  if (unsubscribeChat) {
-
-    unsubscribeChat();
-
-  }
-
-
-  const messagesRef =
-    collection(
-      db,
-      "chats",
-      currentChatID,
-      "messages"
-    );
-
-
-  const q =
-    query(
-      messagesRef,
-      orderBy(
-        "timestamp",
-        "asc"
-      )
-    );
-
-
-  unsubscribeChat =
-    onSnapshot(
-      q,
-      snapshot => {
-
-        const chatArea =
-          document.getElementById(
-            "chatArea"
-          );
-
-
-        chatArea.innerHTML = "";
-
-
-        snapshot.forEach(
-          messageDoc => {
-
-            const msg =
-              messageDoc.data();
-
-
-            const messageID =
-              messageDoc.id;
-
-
-            const isMe =
-              msg.senderID ===
-              currentUser.userID;
-
-
-            createMessageElement(
-              msg,
-              messageID,
-              isMe,
-              chatArea
-            );
-
-          }
-        );
-
-
-        chatArea.scrollTop =
-          chatArea.scrollHeight;
-
-      },
-
-      error => {
-
-        console.error(
-          "Message listener error:",
-          error
-        );
-
-        alert(
-          "Chat data ဖတ်ရာတွင် Error ဖြစ်နေပါသည်။"
-        );
-
-      }
-    );
-
-}
-
-
-/* =========================================================
-   CREATE MESSAGE UI
-========================================================= */
-
-function createMessageElement(
-  msg,
-  messageID,
-  isMe,
-  chatArea
-) {
-
-  const msgDiv =
-    document.createElement(
-      "div"
-    );
-
-
-  msgDiv.className =
-    "message " +
-    (
-      isMe
-        ? "sent"
-        : "received"
-    );
-
-
-  /* TEXT */
-
-  if (
-    msg.type === "text"
-  ) {
-
-    msgDiv.innerText =
-      msg.content;
-
-  }
-
-
-  /* IMAGE */
-
-  else if (
-    msg.type === "image"
-  ) {
-
-    const loading =
-      document.createElement(
-        "div"
-      );
-
-    loading.className =
-      "media-loading";
-
-    loading.innerText =
-      "📷 ပုံကို ဖတ်နေသည်...";
-
-
-    msgDiv.appendChild(
-      loading
-    );
-
-
-    loadMediaFromChunks(
-      messageID,
-      "image",
-      msg.fileName,
-      msg.mimeType
-    )
-    .then(
-      dataURL => {
-
-        loading.remove();
-
-
-        const img =
-          document.createElement(
-            "img"
-          );
-
-
-        img.src =
-          dataURL;
-
-
-        img.alt =
-          "Photo";
-
-
-        img.onclick =
-          () => {
-
-            window.open(
-              dataURL,
-              "_blank"
-            );
-
-          };
-
-
-        msgDiv.appendChild(
-          img
-        );
-
-      }
-    )
-    .catch(
-      error => {
-
-        console.error(
-          error
-        );
-
-        loading.innerText =
-          "❌ ပုံဖတ်၍မရပါ";
-
-      }
-    );
-
-  }
-
-
-  /* VIDEO */
-
-  else if (
-    msg.type === "video"
-  ) {
-
-    const loading =
-      document.createElement(
-        "div"
-      );
-
-
-    loading.className =
-      "media-loading";
-
-
-    loading.innerText =
-      "🎥 Video ကို ပြန်စုနေသည်...";
-
-
-    msgDiv.appendChild(
-      loading
-    );
-
-
-    loadMediaFromChunks(
-      messageID,
-      "video",
-      msg.fileName,
-      msg.mimeType
-    )
-    .then(
-      dataURL => {
-
-        loading.remove();
-
-
-        const video =
-          document.createElement(
-            "video"
-          );
-
-
-        video.src =
-          dataURL;
-
-
-        video.controls =
-          true;
-
-
-        video.preload =
-          "metadata";
-
-
-        msgDiv.appendChild(
-          video
-        );
-
-      }
-    )
-    .catch(
-      error => {
-
-        console.error(
-          error
-        );
-
-        loading.innerText =
-          "❌ Video ဖတ်၍မရပါ";
-
-      }
-    );
-
-  }
-
-
-  chatArea.appendChild(
-    msgDiv
-  );
-
-}
-
-
-/* =========================================================
-   SEND TEXT
-========================================================= */
-
-window.sendTextMessage =
-  async function () {
-
-    try {
-
-      if (
-        !currentUser
-      ) {
-
-        alert(
-          "အရင် Login ဝင်ပါ!"
-        );
-
-        return;
-      }
-
-
-      const input =
-        document.getElementById(
-          "msgInput"
-        );
-
-
-      const text =
-        input.value.trim();
-
-
-      if (
-        !text ||
-        !currentChatID
-      ) {
-
-        alert(
-          "သူငယ်ချင်း ID အရင် ချိတ်ဆက်ပါ!"
-        );
-
-        return;
-      }
-
-
-      input.value = "";
-
-
-      await addDoc(
-        collection(
-          db,
-          "chats",
-          currentChatID,
-          "messages"
-        ),
-        {
-
-          senderID:
-            currentUser.userID,
-
-          type:
-            "text",
-
-          content:
-            text,
-
-          timestamp:
-            serverTimestamp()
-
-        }
-      );
-
-
-    } catch (error) {
-
-      console.error(error);
-
-      alert(
-        "စာပို့မရပါ!\n\n" +
-        error.message
-      );
-
-    }
-
-  };
-
-
-/* =========================================================
-   IMAGE PROCESS
-========================================================= */
-
-function processAndSendImage(
-  file
-) {
-
-  if (
-    !file ||
-    !currentChatID
-  ) {
-
-    alert(
-      "သူငယ်ချင်း ID အရင် ချိတ်ဆက်ပါ!"
-    );
-
-    return;
-  }
-
-
-  const statusBar =
-    document.getElementById(
-      "statusBar"
-    );
-
-
-  statusBar.style.display =
-    "block";
-
-
-  statusBar.innerText =
-    "📷 ပုံကို ချုံ့နေသည်...";
-
-
-  const reader =
-    new FileReader();
-
-
-  reader.onload =
-    event => {
-
-      const img =
-        new Image();
-
-
-      img.onload =
-        async () => {
-
-          try {
-
-            const canvas =
-              document.createElement(
-                "canvas"
-              );
-
-
-            const ctx =
-              canvas.getContext(
-                "2d"
-              );
-
-
-            let width =
-              img.width;
-
-
-            let height =
-              img.height;
-
-
-            /* Smaller image */
-
-            const maxDim =
-              800;
-
-
-            if (
-              width > maxDim ||
-              height > maxDim
-            ) {
-
-              if (
-                width > height
-              ) {
-
-                height =
-                  height *
-                  maxDim /
-                  width;
-
-                width =
-                  maxDim;
-
-              } else {
-
-                width =
-                  width *
-                  maxDim /
-                  height;
-
-                height =
-                  maxDim;
-
-              }
-
-            }
-
-
-            canvas.width =
-              Math.round(width);
-
-
-            canvas.height =
-              Math.round(height);
-
-
-            ctx.drawImage(
-              img,
-              0,
-              0,
-              canvas.width,
-              canvas.height
-            );
-
-
-            /* JPEG 0.45 */
-
-            const dataURL =
-              canvas.toDataURL(
-                "image/jpeg",
-                0.45
-              );
-
-
-            statusBar.innerText =
-              "📤 ပုံကို Firestore သို့ ခွဲပို့နေသည်...";
-
-
-            await sendMediaInChunks(
-              dataURL,
-              "image",
-              "image.jpg",
-              "image/jpeg"
-            );
-
-
-            statusBar.style.display =
-              "none";
-
-
-            document
-              .getElementById(
-                "imageInput"
-              )
-              .value = "";
-
-
-          } catch (error) {
-
-            console.error(
-              error
-            );
-
-
-            statusBar.style.display =
-              "none";
-
-
-            alert(
-              "ပုံပို့မရပါ!\n\n" +
-              error.message
-            );
-
-          }
-
-        };
-
-
-      img.src =
-        event.target.result;
-
+  <!-- Firebase JavaScript SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD81JR9IoFkwGbkq0UWQ4aqfgwwpvLg668",
+      authDomain: "idchat-2bc95.firebaseapp.com",
+      databaseURL: "https://idchat-2bc95-default-rtdb.firebaseio.com",
+      projectId: "idchat-2bc95",
+      storageBucket: "idchat-2bc95.firebasestorage.app",
+      messagingSenderId: "698756711127",
+      appId: "1:698756711127:web:873c465228b2d0976fa692"
     };
 
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-  reader.readAsDataURL(
-    file
-  );
+    let currentUser = null;
+    let currentChatID = null;
+    let unsubscribeChat = null;
+    let localStream = null;
 
-}
+    // Image Input Event Listener
+    document.getElementById('imageInput').addEventListener('change', (e) => sendImageDirect(e.target.files[0]));
 
+    async function generateUniqueID() {
+      let isUnique = false, newID = "";
+      while (!isUnique) {
+        newID = Math.floor(100000 + Math.random() * 900000).toString();
+        const docSnap = await getDoc(doc(db, "users", newID));
+        if (!docSnap.exists()) isUnique = true;
+      }
+      return newID;
+    }
 
-/* =========================================================
-   VIDEO PROCESS
-========================================================= */
+    window.handleRegister = async () => {
+      const name = document.getElementById("regName").value.trim();
+      const pass = document.getElementById("regPass").value.trim();
+      if (!name || !pass) return alert("အမည်နှင့် စကားဝှက် ရိုက်ထည့်ပါ!");
 
-function processAndSendVideo(
-  file
-) {
+      const userID = await generateUniqueID();
+      await setDoc(doc(db, "users", userID), { userID, name, password: pass, createdAt: serverTimestamp() });
+      alert(`အကောင့် အောင်မြင်စွာ ဖန်တီးပြီးပါပြီ!\nသင့်၏ ပုံသေ ID: ${userID}`);
+      loginSuccess(userID, name);
+    };
 
-  if (
-    !file ||
-    !currentChatID
-  ) {
+    window.handleLogin = async () => {
+      const userID = document.getElementById("loginID").value.trim();
+      if (!userID) return alert("ID ရိုက်ထည့်ပါ!");
+      const docSnap = await getDoc(doc(db, "users", userID));
+      if (docSnap.exists()) {
+        loginSuccess(userID, docSnap.data().name);
+      } else {
+        alert("ဤ ID ဖြင့် အကောင့်မရှိပါ!");
+      }
+    };
 
-    alert(
-      "သူငယ်ချင်း ID အရင် ချိတ်ဆက်ပါ!"
-    );
+    function loginSuccess(userID, name) {
+      currentUser = { userID, name };
+      document.getElementById("myIDDisplay").innerText = userID;
+      document.getElementById("userNameDisplay").innerText = name;
+      document.getElementById("authModal").style.display = "none";
+    }
 
-    return;
-  }
+    window.connectChat = async () => {
+      const targetID = document.getElementById("targetIDInput").value.trim();
+      if (!targetID || targetID === currentUser.userID) return alert("မှန်ကန်သော သူငယ်ချင်း ID ရိုက်ထည့်ပါ!");
+      currentChatID = [currentUser.userID, targetID].sort().join("_");
+      loadMessages();
+    };
 
+    function loadMessages() {
+      if (unsubscribeChat) unsubscribeChat();
+      const q = query(collection(db, "chats", currentChatID, "messages"), orderBy("timestamp", "asc"));
+      
+      unsubscribeChat = onSnapshot(q, (snapshot) => {
+        const chatArea = document.getElementById("chatArea");
+        chatArea.innerHTML = "";
+        snapshot.forEach((doc) => {
+          const msg = doc.data();
+          const isMe = msg.senderID === currentUser.userID;
+          const msgDiv = document.createElement("div");
+          msgDiv.className = `message ${isMe ? 'sent' : 'received'}`;
 
-  if (
-    file.size >
-    MAX_VIDEO_SIZE
-  ) {
+          if (msg.type === "text") {
+            msgDiv.innerText = msg.content;
+          } else if (msg.type === "image") {
+            msgDiv.innerHTML = `<img src="${msg.imageUrl}" alt="Photo" onclick="window.open('${msg.imageUrl}')">`;
+          }
+          chatArea.appendChild(msgDiv);
+        });
+        chatArea.scrollTop = chatArea.scrollHeight;
+      });
+    }
 
-    alert(
-      "Firestore-only စနစ်ဖြစ်သောကြောင့်\n\n" +
-      "Video အရွယ်အစား 5MB ထက် မကြီးရပါ။"
-    );
+    // Send Text Message
+    window.sendTextMessage = async () => {
+      const input = document.getElementById("msgInput");
+      const text = input.value.trim();
+      if (!text || !currentChatID) return alert("သူငယ်ချင်း ID အရင် ရိုက်ထည့်ပါ!");
+      input.value = "";
+      await addDoc(collection(db, "chats", currentChatID, "messages"), {
+        senderID: currentUser.userID,
+        type: "text",
+        content: text,
+        timestamp: serverTimestamp()
+      });
+    };
 
+    // 100% Reliable Direct Image Upload
+    async function sendImageDirect(file) {
+      if (!file || !currentChatID) return alert("သူငယ်ချင်း ID အရင် ရိုက်ထည့်ပါ!");
 
-    document
-      .getElementById(
-        "videoInput"
-      )
-      .value = "";
+      const statusBar = document.getElementById("statusBar");
+      statusBar.style.display = "block";
+      statusBar.innerText = "ဓာတ်ပုံ ပို့ပေးနေပါသည်... ခေတ္တစောင့်ပါ";
 
-
-    return;
-  }
-
-
-  const statusBar =
-    document.getElementById(
-      "statusBar"
-    );
-
-
-  statusBar.style.display =
-    "block";
-
-
-  statusBar.innerText =
-    "🎥 Video ကို ဖတ်နေသည်...";
-
-
-  const reader =
-    new FileReader();
-
-
-  reader.onload =
-    async event => {
+      const formData = new FormData();
+      formData.append("image", file);
 
       try {
+        const res = await fetch("https://api.imgbb.com/1/upload?key=c262846ef67e21a2886f34552b7e5e34", {
+          method: "POST",
+          body: formData
+        });
+        const data = await res.json();
 
-        const dataURL =
-          event.target.result;
-
-
-        statusBar.innerText =
-          "📤 Video ကို Firestore သို့ ခွဲပို့နေသည်...";
-
-
-        await sendMediaInChunks(
-          dataURL,
-          "video",
-          file.name,
-          file.type ||
-            "video/mp4"
-        );
-
-
-        statusBar.style.display =
-          "none";
-
-
-        document
-          .getElementById(
-            "videoInput"
-          )
-          .value = "";
-
-
-      } catch (error) {
-
-        console.error(
-          error
-        );
-
-
-        statusBar.style.display =
-          "none";
-
-
-        alert(
-          "Video ပို့မရပါ!\n\n" +
-          error.message
-        );
-
+        if (data.success) {
+          await addDoc(collection(db, "chats", currentChatID, "messages"), {
+            senderID: currentUser.userID,
+            type: 'image',
+            imageUrl: data.data.url,
+            timestamp: serverTimestamp()
+          });
+          statusBar.style.display = "none";
+          document.getElementById('imageInput').value = "";
+        } else {
+          alert("ဓာတ်ပုံ တင်မရပါ၊ ထပ်မံ ကြိုးစားပါ။");
+          statusBar.style.display = "none";
+        }
+      } catch (err) {
+        alert("Error: " + err.message);
+        statusBar.style.display = "none";
       }
+    }
 
+    // Video Call Functions (Camera/Mic Active)
+    window.openVideoCall = async () => {
+      if (!currentChatID) return alert("ခေါ်ဆိုလိုသည့် သူငယ်ချင်း ID သို့ အရင် ချိတ်ဆက်ပါ!");
+
+      const overlay = document.getElementById("videoCallOverlay");
+      overlay.style.display = "flex";
+
+      try {
+        // Open Device Camera and Microphone
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        document.getElementById("localVideo").srcObject = localStream;
+      } catch (err) {
+        alert("ကင်မရာ သို့မဟုတ် မိုက်ခရိုဖုန်း အသုံးပြုခွင့် ပိတ်ထားပါသည်။");
+        closeVideoCall();
+      }
     };
 
-
-  reader.readAsDataURL(
-    file
-  );
-
-}
-
-
-/* =========================================================
-   SEND MEDIA CHUNKS
-========================================================= */
-
-async function sendMediaInChunks(
-  dataURL,
-  type,
-  fileName,
-  mimeType
-) {
-
-  const base64 =
-    dataURL.split(",")[1];
-
-
-  const totalChunks =
-    Math.ceil(
-      base64.length /
-      CHUNK_SIZE
-    );
-
-
-  /* Create message first */
-
-  const messageRef =
-    await addDoc(
-      collection(
-        db,
-        "chats",
-        currentChatID,
-        "messages"
-      ),
-      {
-
-        senderID:
-          currentUser.userID,
-
-        type:
-          type,
-
-        fileName:
-          fileName,
-
-        mimeType:
-          mimeType,
-
-        totalChunks:
-          totalChunks,
-
-        timestamp:
-          serverTimestamp()
-
+    window.closeVideoCall = () => {
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
       }
-    );
-
-
-  const messageID =
-    messageRef.id;
-
-
-  /*
-     Upload chunks one by one
-  */
-
-  for (
-    let i = 0;
-    i < totalChunks;
-    i++
-  ) {
-
-    const start =
-      i *
-      CHUNK_SIZE;
-
-
-    const end =
-      Math.min(
-        start +
-        CHUNK_SIZE,
-        base64.length
-      );
-
-
-    const chunk =
-      base64.substring(
-        start,
-        end
-      );
-
-
-    await setDoc(
-      doc(
-        db,
-        "chats",
-        currentChatID,
-        "messages",
-        messageID,
-        "chunks",
-        String(i)
-      ),
-      {
-
-        index:
-          i,
-
-        data:
-          chunk
-
-      }
-    );
-
-
-    const percent =
-      Math.round(
-        (
-          (i + 1) /
-          totalChunks
-        ) *
-        100
-      );
-
-
-    updateStatus(
-      "📤 ပို့နေသည်... " +
-      percent +
-      "%"
-    );
-
-  }
-
-
-  updateStatus(
-    "✅ Media ပို့ပြီးပါပြီ"
-  );
-
-
-  setTimeout(
-    () => {
-
-      const status =
-        document.getElementById(
-          "statusBar"
-        );
-
-      status.style.display =
-        "none";
-
-    },
-    1200
-  );
-
-}
-
-
-/* =========================================================
-   LOAD MEDIA CHUNKS
-========================================================= */
-
-async function loadMediaFromChunks(
-  messageID,
-  type,
-  fileName,
-  mimeType
-) {
-
-  const chunksRef =
-    collection(
-      db,
-      "chats",
-      currentChatID,
-      "messages",
-      messageID,
-      "chunks"
-    );
-
-
-  const snapshot =
-    await getDocs(
-      chunksRef
-    );
-
-
-  if (
-    snapshot.empty
-  ) {
-
-    throw new Error(
-      "Media chunks မတွေ့ပါ"
-    );
-
-  }
-
-
-  const chunks =
-    [];
-
-
-  snapshot.forEach(
-    chunkDoc => {
-
-      const data =
-        chunkDoc.data();
-
-
-      chunks.push({
-        index:
-          data.index,
-
-        data:
-          data.data
-      });
-
-    }
-  );
-
-
-  /* Sort chunks */
-
-  chunks.sort(
-    (a, b) =>
-      a.index -
-      b.index
-  );
-
-
-  let base64 =
-    "";
-
-
-  for (
-    const chunk
-    of chunks
-  ) {
-
-    base64 +=
-      chunk.data;
-
-  }
-
-
-  return (
-    "data:" +
-    mimeType +
-    ";base64," +
-    base64
-  );
-
-}
-
-
-/* =========================================================
-   STATUS
-========================================================= */
-
-function updateStatus(
-  text
-) {
-
-  const status =
-    document.getElementById(
-      "statusBar"
-    );
-
-
-  status.style.display =
-    "block";
-
-
-  status.innerText =
-    text;
-
-}
-
-
-/* =========================================================
-   VIDEO CALL
-========================================================= */
-
-window.startVideoCall =
-  function () {
-
-    if (
-      !currentChatID
-    ) {
-
-      alert(
-        "ခေါ်ဆိုလိုသည့် သူငယ်ချင်း ID သို့ အရင် ချိတ်ဆက်ပါ!"
-      );
-
-      return;
-    }
-
-
-    document
-      .getElementById(
-        "callOverlay"
-      )
-      .style.display =
-      "flex";
-
-  };
-
-
-/* =========================================================
-   END CALL
-========================================================= */
-
-window.endCall = function () {
-
-  document
-    .getElementById("callOverlay")
-    .style.display = "none";
-
-};
-
-
-/* =========================================================
-   END OF JAVASCRIPT
-========================================================= */
-
-</script>
-
+      document.getElementById("videoCallOverlay").style.display = "none";
+    };
+  </script>
 </body>
-    </html>
+      </html>
+  
