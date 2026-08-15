@@ -163,6 +163,19 @@
       ]
     };
 
+    // --- Browser Audio Unlock Handler ---
+    // အသုံးပြုသူ Screen ပေါ် Touch/Click လုပ်လိုက်သည်နှင့် AudioContext ကို ကြိုတင် unlock အဆင်သင့်လုပ်ထားပေးခြင်း
+    function initAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+    window.addEventListener('click', initAudioContext, { once: true });
+    window.addEventListener('touchstart', initAudioContext, { once: true });
+
     // Tab Switching Logic
     window.switchTab = (tabId, element) => {
       document.querySelectorAll('.content-section').forEach(el => el.classList.remove('active'));
@@ -187,21 +200,31 @@
       }
     }
 
-    // --- Audio Sound Synthesizer (Ringtone) ---
+    // --- Audio Sound Synthesizer (Ringtone + Vibration) ---
     function playRingtone() {
       try {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        initAudioContext();
+
+        // Android Device များတွင် အသံပါမလာပါက သတိထားမိစေရန် တုန်ခါမှု (Vibration) တွဲဖက်ဖွင့်ပေးခြင်း
+        if ("vibrate" in navigator) {
+          navigator.vibrate([800, 400, 800, 400]);
+        }
+
         ringtoneInterval = setInterval(() => {
-          if (audioCtx.state === 'suspended') audioCtx.resume();
-          const osc = audioCtx.createOscillator();
-          const gain = audioCtx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(440, audioCtx.currentTime);
-          gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-          osc.connect(gain);
-          gain.connect(audioCtx.destination);
-          osc.start();
-          osc.stop(audioCtx.currentTime + 0.8);
+          if (audioCtx && audioCtx.state === 'suspended') {
+            audioCtx.resume();
+          }
+          if (audioCtx) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.8);
+          }
         }, 1500);
       } catch (e) { console.log(e); }
     }
@@ -210,6 +233,9 @@
       if (ringtoneInterval) {
         clearInterval(ringtoneInterval);
         ringtoneInterval = null;
+      }
+      if ("vibrate" in navigator) {
+        navigator.vibrate(0); // Stop vibration
       }
     }
 
@@ -224,6 +250,7 @@
     }
 
     window.handleRegister = async () => {
+      initAudioContext(); // User click ထောက်ခံမှု ယူခြင်း
       const name = document.getElementById("regName").value.trim();
       const pass = document.getElementById("regPass").value.trim();
       if (!name || !pass) return alert("အမည်နှင့် စကားဝှက် ရိုက်ထည့်ပါ!");
@@ -235,6 +262,7 @@
     };
 
     window.handleLogin = async () => {
+      initAudioContext(); // User click ထောက်ခံမှု ယူခြင်း
       const userID = document.getElementById("loginID").value.trim();
       if (!userID) return alert("ID ရိုက်ထည့်ပါ!");
       const docSnap = await getDoc(doc(db, "users", userID));
@@ -298,11 +326,9 @@
     function createPeerConnection(targetID) {
       peerConnection = new RTCPeerConnection(rtcConfig);
 
-      if (localStream) {
-        localStream.getTracks().forEach(track => {
-          peerConnection.addTrack(track, localStream);
-        });
-      }
+      localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+      });
 
       peerConnection.ontrack = (event) => {
         document.getElementById("remoteVideo").srcObject = event.streams[0];
@@ -338,27 +364,18 @@
       });
     }
 
-    // Helper Function: Media Permisssion အမြဲတမ်း ပြန်လည်တောင်းဆိုစေရန် Clean ရင်းနှီးမှုပြုလုပ်ခြင်း
-    async function getFreshMediaPermissions() {
-      if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
-      }
-      return await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    }
-
     window.startCall = async () => {
+      initAudioContext();
       const targetID = document.getElementById("targetIDInput").value.trim();
       if (!targetID) return alert("ခေါ်ဆိုလိုသော သူငယ်ချင်း ID ကို ရိုက်ထည့်ပါ!");
 
       activeCallTargetID = targetID;
 
       try {
-        // အချိန်တိုင်း Permissions Pop-up ပြန်တောင်းနိုင်အောင် fresh media Stream ရယူခြင်း
-        localStream = await getFreshMediaPermissions();
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         document.getElementById("localVideo").srcObject = localStream;
       } catch (err) {
-        return alert("ကင်မရာ သို့မဟုတ် မိုက်ခရိုဖုန်း အသုံးပြုခွင့် ငြင်းပယ်ထားပါသည်။");
+        return alert("ကင်မရာ သို့မဟုတ် မိုက်ခရိုဖုန်း အသုံးပြုခွင့် ပိတ်ထားပါသည်။");
       }
 
       document.getElementById("videoCallOverlay").style.display = "flex";
@@ -406,16 +423,16 @@
     };
 
     window.acceptIncomingCall = async () => {
+      initAudioContext();
       stopRingtone();
       document.getElementById("acceptCallBtn").style.display = "none";
       document.getElementById("callStatusText").innerText = "ချိတ်ဆက်နေသည်...";
 
       try {
-        // အချိန်တိုင်း Permissions Pop-up ပြန်တောင်းနိုင်အောင် fresh media Stream ရယူခြင်း
-        localStream = await getFreshMediaPermissions();
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         document.getElementById("localVideo").srcObject = localStream;
       } catch (err) {
-        return alert("ကင်မရာ သို့မဟုတ် မိုက်ခရိုဖုန်း အသုံးပြုခွင့် ငြင်းပယ်ထားပါသည်။");
+        return alert("ကင်မရာ ဖွင့်မရပါ။");
       }
 
       const callerID = incomingCallData.callerID;
@@ -455,15 +472,10 @@
       resetCallState();
     };
 
-    
     function resetCallState() {
       stopRingtone();
       if (localStream) {
-        // Video/Audio Track များကို လုံးဝ ပိတ်သိမ်းခြင်း
-        localStream.getTracks().forEach(track => {
-          track.stop();
-          localStream.removeTrack(track);
-        });
+        localStream.getTracks().forEach(track => track.stop());
         localStream = null;
       }
       if (peerConnection) {
