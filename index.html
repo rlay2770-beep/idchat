@@ -122,11 +122,13 @@
     let currentUser = null;
     let currentChatID = null;
     let unsubscribeChat = null;
+    let activeCallTargetID = null;
     
     let localStream = null;
-    let remoteStream = null;
     let peerConnection = null;
     let incomingCallData = null;
+    let ringtoneInterval = null;
+    let audioCtx = null;
 
     const rtcConfig = {
       iceServers: [
@@ -134,6 +136,32 @@
         { urls: 'stun:stun1.l.google.com:19302' }
       ]
     };
+
+    // --- Audio Sound Synthesizer (Ringtone) ---
+    function playRingtone() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        ringtoneInterval = setInterval(() => {
+          if (audioCtx.state === 'suspended') audioCtx.resume();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(440, audioCtx.currentTime); // Standard Ring Tone Frequency
+          gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.8);
+        }, 1500);
+      } catch (e) { console.log(e); }
+    }
+
+    function stopRingtone() {
+      if (ringtoneInterval) {
+        clearInterval(ringtoneInterval);
+        ringtoneInterval = null;
+      }
+    }
 
     async function generateUniqueID() {
       let isUnique = false, newID = "";
@@ -215,22 +243,19 @@
       });
     };
 
-    // --- WebRTC Video Call Functions ---
+    // --- WebRTC Video Call Core ---
 
     function createPeerConnection(targetID) {
       peerConnection = new RTCPeerConnection(rtcConfig);
 
-      // Local stream tracks ထည့်သွင်းခြင်း
       localStream.getTracks().forEach(track => {
         peerConnection.addTrack(track, localStream);
       });
 
-      // Remote stream လက်ခံရရှိချိန်တွင် video element ထဲသို့ ထည့်ရန်
       peerConnection.ontrack = (event) => {
         document.getElementById("remoteVideo").srcObject = event.streams[0];
       };
 
-      // ICE Candidates များကို Firestore မှတစ်ဆင့် လဲလှယ်ခြင်း
       peerConnection.onicecandidate = async (event) => {
         if (event.candidate) {
           await addDoc(collection(db, "calls", targetID, "candidates"), event.candidate.toJSON());
@@ -238,16 +263,26 @@
       };
     }
 
-    // ၁။ ဖုန်းဝင်လာခြင်းကို စောင့်ကြည့်ခြင်း
+    // ၁။ ဝင်လာသောဖုန်းကို စောင့်ကြည့်ခြင်း + Automatic Hangup Listener
     function listenForIncomingCalls() {
       onSnapshot(doc(db, "calls", currentUser.userID), async (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data();
+          
           if (data && data.offer && !peerConnection) {
             incomingCallData = data;
+            activeCallTargetID = data.callerID;
             document.getElementById("videoCallOverlay").style.display = "flex";
             document.getElementById("callStatusText").innerText = `${data.callerName} ထံမှ Video Call ဝင်လာပါသည်...`;
             document.getElementById("acceptCallBtn").style.display = "flex";
+            
+            // Ringtone စတင် မြည်စေခြင်း
+            playRingtone();
+          }
+        } else {
+          // တစ်ဖက်လူ ဖုန်းချလိုက်ပါက အလိုအလျောက် Call Screen ပိတ်သွားခြင်း
+          if (document.getElementById("videoCallOverlay").style.display === "flex") {
+            resetCallState();
           }
         }
       });
@@ -257,6 +292,8 @@
     window.startCall = async () => {
       const targetID = document.getElementById("targetIDInput").value.trim();
       if (!targetID) return alert("ခေါ်ဆိုလိုသော သူငယ်ချင်း ID ကို ရိုက်ထည့်ပါ!");
+
+      activeCallTargetID = targetID;
 
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -269,30 +306,36 @@
       document.getElementById("callStatusText").innerText = "ဖုန်းခေါ်ဆိုနေသည်... ခေတ္တစောင့်ပါ";
       document.getElementById("acceptCallBtn").style.display = "none";
 
+      playRingtone();
       createPeerConnection(targetID);
 
-      // WebRTC Offer ဖန်တီးခြင်း
       const offer = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(offer);
 
-      // Firestore တွင် Offer သိမ်းဆည်းခြင်း
       await setDoc(doc(db, "calls", targetID), {
         callerID: currentUser.userID,
         callerName: currentUser.name,
         offer: { type: offer.type, sdp: offer.sdp }
       });
 
-      // Callee ပြန်ပေးမည့် Answer ကို စောင့်ကြည့်ခြင်း
+      // Callee ရဲ့ Answer နှင့် Hangup ကို စောင့်ကြည့်ခြင်း
       onSnapshot(doc(db, "calls", targetID), async (snapshot) => {
+        if (!snapshot.exists()) {
+          // တစ်ဖက်လူက ဖုန်းချလိုက်ပါက မိမိဘက်တွင်ပါ အလိုအလျောက် ကျသွားမည်
+          resetCallState();
+          return;
+        }
+
         const data = snapshot.data();
         if (data && data.answer && peerConnection && !peerConnection.currentRemoteDescription) {
+          stopRingtone();
           const remoteDesc = new RTCSessionDescription(data.answer);
           await peerConnection.setRemoteDescription(remoteDesc);
-          document.getElementById("callStatusText").innerText = "ချိတ်ဆက်သွားပါပြီ";
+          document.getElementById("callStatusText").innerText = "ဗီဒီယို ဖုန်းခေါ်ဆိုမှု စတင်ပါပြီ";
         }
       });
 
-      // ICE Candidates များကို နားထောင်ခြင်း
+      // ICE Candidates
       const candidatesCol = collection(db, "calls", currentUser.userID, "candidates");
       onSnapshot(candidatesCol, (snapshot) => {
         snapshot.docChanges().forEach(async (change) => {
@@ -308,6 +351,7 @@
 
     // ၃။ ဝင်လာသောဖုန်းကို လက်ခံခြင်း (Callee)
     window.acceptIncomingCall = async () => {
+      stopRingtone();
       document.getElementById("acceptCallBtn").style.display = "none";
       document.getElementById("callStatusText").innerText = "ချိတ်ဆက်နေသည်...";
 
@@ -321,19 +365,15 @@
       const callerID = incomingCallData.callerID;
       createPeerConnection(callerID);
 
-      // Offer ကို Remote Description အဖြစ် သတ်မှတ်ခြင်း
       await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingCallData.offer));
 
-      // Answer ဖန်တီးခြင်း
       const answer = await peerConnection.createAnswer();
       await peerConnection.setLocalDescription(answer);
 
-      // Firestore သို့ Answer ပြန်ပို့ခြင်း
       await updateDoc(doc(db, "calls", currentUser.userID), {
         answer: { type: answer.type, sdp: answer.sdp }
       });
 
-      // ICE Candidates များကို နားထောင်ခြင်း
       const candidatesCol = collection(db, "calls", callerID, "candidates");
       onSnapshot(candidatesCol, (snapshot) => {
         snapshot.docChanges().forEach(async (change) => {
@@ -351,21 +391,29 @@
 
     // ၄။ ဖုန်းချခြင်း (End Call)
     window.endCall = async () => {
+      if (currentUser) {
+        await deleteDoc(doc(db, "calls", currentUser.userID)).catch(() => {});
+      }
+      if (activeCallTargetID) {
+        await deleteDoc(doc(db, "calls", activeCallTargetID)).catch(() => {});
+      }
+      resetCallState();
+    };
+
+    function resetCallState() {
+      stopRingtone();
       if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
       }
       if (peerConnection) {
         peerConnection.close();
         peerConnection = null;
       }
-      
-      if (currentUser) {
-        await deleteDoc(doc(db, "calls", currentUser.userID)).catch(() => {});
-      }
-      
+      document.getElementById("remoteVideo").srcObject = null;
+      document.getElementById("localVideo").srcObject = null;
       document.getElementById("videoCallOverlay").style.display = "none";
-      location.reload(); // စာမျက်နှာကို ပြန်လည် Refresh လုပ်ပေးခြင်းဖြင့် Call State ရှင်းလင်းသွားမည်
-    };
+    }
   </script>
 </body>
   </html>
