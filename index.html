@@ -39,8 +39,14 @@
     .input-area input[type="text"] { flex: 1; padding: 10px 15px; border: 1px solid #ddd; border-radius: 20px; outline: none; }
     .input-area button { background: #0084ff; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 16px; flex-shrink: 0; }
 
-    /* AI Frame Container */
-    .ai-frame { width: 100%; height: 100%; border: none; }
+    /* AI Switcher & Container Styles */
+    .ai-switcher { display: flex; gap: 8px; padding: 8px 12px; background: #f8f9fa; border-bottom: 1px solid #e9ecef; }
+    .ai-selector-btn { flex: 1; padding: 8px; border: 1px solid #0084ff; background: #fff; color: #0084ff; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; transition: all 0.2s; }
+    .ai-selector-btn.active { background: #0084ff; color: #fff; }
+
+    .ai-frame-container { flex: 1; position: relative; width: 100%; height: 100%; }
+    .ai-frame { width: 100%; height: 100%; border: none; position: absolute; top: 0; left: 0; display: none; }
+    .ai-frame.active { display: block; }
 
     /* Video Call Overlay Screen */
     .video-call-overlay { display: none; position: fixed; inset: 0; background: #111; z-index: 2000; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px; }
@@ -144,9 +150,16 @@
       </div>
     </div>
 
-    <!-- AI Learning Tab Section -->
+    <!-- AI Learning Tab Section (Dual AI Integration) -->
     <div id="aiTab" class="content-section">
-      <iframe src="https://effervescent-lolly-f72885.netlify.app/" class="ai-frame"></iframe>
+      <div class="ai-switcher">
+        <button class="ai-selector-btn active" onclick="switchAI('aiFrame1', this)">🇬🇧 English AI</button>
+        <button class="ai-selector-btn" onclick="switchAI('aiFrame2', this)">🇲🇲 မြန်မာဘာသာပြန် AI</button>
+      </div>
+      <div class="ai-frame-container">
+        <iframe id="aiFrame1" src="https://effervescent-lolly-f72885.netlify.app/" class="ai-frame active"></iframe>
+        <iframe id="aiFrame2" src="https://peppy-rolypoly-7bd6df.netlify.app/" class="ai-frame"></iframe>
+      </div>
     </div>
 
   </div>
@@ -192,6 +205,14 @@
       document.querySelectorAll('.content-section').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
       document.getElementById(tabId).classList.add('active');
+      element.classList.add('active');
+    };
+
+    // AI Switcher Logic
+    window.switchAI = (frameId, element) => {
+      document.querySelectorAll('.ai-frame').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.ai-selector-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById(frameId).classList.add('active');
       element.classList.add('active');
     };
 
@@ -261,7 +282,7 @@
     window.handleLogin = async () => {
       const userID = document.getElementById("loginID").value.trim();
       if (!userID) return alert("ID ရိုက်ထည့်ပါ!");
-      const docSnap = await getDoc(doc(db, "users", userID));
+      const docSnap = await getDoc(doc(doc(db, "users", userID)));
       if (docSnap.exists()) {
         loginSuccess(userID, docSnap.data().name);
       } else {
@@ -392,7 +413,7 @@
         offer: { type: offer.type, sdp: offer.sdp }
       });
 
-      onSnapshot(doc(db, "calls", targetID), async (snapshot) => {
+      onSnapshot(doc(doc(db, "calls", targetID)), async (snapshot) => {
         if (!snapshot.exists()) {
           resetCallState();
           return;
