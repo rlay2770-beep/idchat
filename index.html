@@ -187,23 +187,40 @@
       }
     }
 
+    // Dynamic Audio Unlocker (Browser Autoplay Permission Unlocker)
+    function unlockAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    // Click/Touch Event တိုင်းတွင် Audio Lock ကို Auto 解除 (Unlock) ပေးမည်
+    document.addEventListener('click', unlockAudioContext);
+    document.addEventListener('touchstart', unlockAudioContext);
+
     // --- Audio Sound Synthesizer (Ringtone) ---
     function playRingtone() {
       try {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        unlockAudioContext();
+        stopRingtone(); // အဟောင်းရှိပါက အရင်ရှင်းမည်
+
         ringtoneInterval = setInterval(() => {
-          if (audioCtx.state === 'suspended') audioCtx.resume();
-          const osc = audioCtx.createOscillator();
-          const gain = audioCtx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(440, audioCtx.currentTime);
-          gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-          osc.connect(gain);
-          gain.connect(audioCtx.destination);
-          osc.start();
-          osc.stop(audioCtx.currentTime + 0.8);
+          if (audioCtx && audioCtx.state === 'running') {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.8);
+          }
         }, 1500);
-      } catch (e) { console.log(e); }
+      } catch (e) { console.log("Ringtone Error:", e); }
     }
 
     function stopRingtone() {
@@ -251,6 +268,7 @@
       document.getElementById("userNameDisplay").innerText = name;
       document.getElementById("authModal").style.display = "none";
       
+      unlockAudioContext();
       requestNotificationPermission();
       listenForIncomingCalls();
     }
@@ -337,6 +355,7 @@
     }
 
     window.startCall = async () => {
+      unlockAudioContext();
       const targetID = document.getElementById("targetIDInput").value.trim();
       if (!targetID) return alert("ခေါ်ဆိုလိုသော သူငယ်ချင်း ID ကို ရိုက်ထည့်ပါ!");
 
@@ -394,6 +413,7 @@
     };
 
     window.acceptIncomingCall = async () => {
+      unlockAudioContext();
       stopRingtone();
       document.getElementById("acceptCallBtn").style.display = "none";
       document.getElementById("callStatusText").innerText = "ချိတ်ဆက်နေသည်...";
@@ -458,5 +478,4 @@
     }
   </script>
 </body>
-  </html>
-  
+</html
