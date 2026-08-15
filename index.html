@@ -3,46 +3,36 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IDChat - Privacy Messaging & Calls</title>
+  <title>IDChat - Fixed Media Version</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
     body { background-color: #f0f2f5; display: flex; justify-content: center; height: 100vh; }
     .app-container { width: 100%; max-width: 480px; background: #fff; display: flex; flex-direction: column; height: 100vh; box-shadow: 0 0 15px rgba(0,0,0,0.1); }
     
-    /* Header & User Card */
     .header { background: #0084ff; color: white; padding: 15px; text-align: center; font-size: 18px; font-weight: bold; }
     .user-card { background: #e7f3ff; padding: 10px 15px; font-size: 14px; color: #0084ff; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #cce5ff; }
     
-    /* Auth Overlay */
     .auth-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 100; }
-    .auth-box { background: white; padding: 25px; border-radius: 12px; width: 85%; max-width: 320px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+    .auth-box { background: white; padding: 25px; border-radius: 12px; width: 85%; max-width: 320px; text-align: center; }
     .auth-box input { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; }
     .auth-box button { width: 100%; padding: 10px; background: #0084ff; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 5px; }
 
-    /* Search & Target Info */
     .search-box { padding: 10px; border-bottom: 1px solid #eee; display: flex; gap: 5px; background: #fafafa; }
     .search-box input { flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 20px; outline: none; }
     .search-box button { padding: 8px 15px; background: #28a745; color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; }
 
-    /* Chat Area */
     .chat-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #f4f6f8; }
-    .message { max-width: 75%; padding: 10px 14px; border-radius: 15px; font-size: 14px; line-height: 1.4; word-break: break-word; position: relative; }
+    .message { max-width: 75%; padding: 10px 14px; border-radius: 15px; font-size: 14px; line-height: 1.4; word-break: break-word; }
     .message.sent { background: #0084ff; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
     .message.received { background: #ffffff; color: #333; align-self: flex-start; border-bottom-left-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     .message img, .message video { max-width: 100%; border-radius: 10px; margin-top: 5px; display: block; }
     
-    /* Action Bar (Input Bar) */
+    .status-bar { text-align: center; font-size: 12px; color: #666; padding: 5px; background: #fff3cd; display: none; }
+
     .input-area { padding: 10px; border-top: 1px solid #eee; display: flex; gap: 8px; align-items: center; background: white; }
     .input-area input[type="text"] { flex: 1; padding: 10px 15px; border: 1px solid #ddd; border-radius: 20px; outline: none; }
-    .input-area button { background: #0084ff; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 16px; display: flex; justify-content: center; align-items: center; }
-    .media-btn { cursor: pointer; font-size: 20px; padding: 5px; }
-
-    /* Call Overlay UI */
-    .call-overlay { display: none; position: fixed; inset: 0; background: #111; color: white; flex-direction: column; justify-content: center; align-items: center; z-index: 200; text-align: center; }
-    .call-btn-group { display: flex; gap: 20px; margin-top: 40px; }
-    .call-btn { width: 60px; height: 60px; border-radius: 50%; border: none; font-size: 24px; color: white; cursor: pointer; }
-    .btn-end { background: #dc3545; }
-    .btn-accept { background: #28a745; }
+    .input-area button { background: #0084ff; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 16px; flex-shrink: 0; }
+    .media-btn { cursor: pointer; font-size: 22px; padding: 0 4px; }
   </style>
 </head>
 <body>
@@ -61,56 +51,46 @@
     </div>
   </div>
 
-  <!-- Voice Call UI Overlay -->
-  <div class="call-overlay" id="callOverlay">
-    <h2 id="callTargetName">ခေါ်ဆိုနေသည်...</h2>
-    <p id="callStatusText" style="margin-top: 10px; color: #aaa;">ချိတ်ဆက်နေသည်...</p>
-    <div class="call-btn-group">
-      <button class="call-btn btn-accept" id="acceptCallBtn" onclick="acceptCall()" style="display: none;">📞</button>
-      <button class="call-btn btn-end" onclick="endCall()">📵</button>
-    </div>
-  </div>
-
-  <!-- App Main Interface -->
   <div class="app-container">
     <div class="header">IDChat</div>
     
-    <div class="user-card" id="userCard">
+    <div class="user-card">
       <span>မိမိ ID: <b id="myIDDisplay">-</b></span>
       <span id="userNameDisplay">-</span>
     </div>
 
-    <!-- Search / Connect Partner -->
     <div class="search-box">
       <input type="text" id="targetIDInput" placeholder="သူငယ်ချင်း၏ ID ရိုက်ထည့်ပါ">
       <button onclick="connectChat()">စကားပြောမည်</button>
     </div>
 
-    <!-- Chat Screen -->
+    <div class="status-bar" id="statusBar">Uploading...</div>
+
     <div class="chat-area" id="chatArea">
       <div style="text-align: center; color: #999; margin-top: 30px; font-size: 13px;">
         သူငယ်ချင်း ID ကို ရိုက်ထည့်ပြီး စာ/ပုံ/ဗီဒီယိုများ စတင်ပို့နိုင်ပါပြီ
       </div>
     </div>
 
-    <!-- Message Input Bar -->
     <div class="input-area">
-      <label class="media-btn" title="ဓာတ်ပုံ ပို့မည်">
-        📷 <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="uploadMedia('image')">
-      </label>
-      <label class="media-btn" title="ဗီဒီယို ပို့မည်">
-        🎥 <input type="file" id="videoInput" accept="video/*" style="display: none;" onchange="uploadMedia('video')">
-      </label>
+      <!-- Image Input Button -->
+      <span class="media-btn" onclick="document.getElementById('imageInput').click()">📷</span>
+      <input type="file" id="imageInput" accept="image/*" style="display: none;">
+
+      <!-- Video Input Button -->
+      <span class="media-btn" onclick="document.getElementById('videoInput').click()">🎥</span>
+      <input type="file" id="videoInput" accept="video/*" style="display: none;">
+
       <input type="text" id="msgInput" placeholder="စာရိုက်ပါ..." onkeypress="if(event.key==='Enter') sendTextMessage()">
       <button onclick="sendTextMessage()">➤</button>
     </div>
   </div>
 
-  <!-- Firebase JavaScript SDK -->
+  <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+    import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyD81JR9IoFkwGbkq0UWQ4aqfgwwpvLg668",
@@ -130,7 +110,10 @@
     let currentChatID = null;
     let unsubscribeChat = null;
 
-    // 1. Permanent ID Generation
+    // Event Listeners for File Inputs
+    document.getElementById('imageInput').addEventListener('change', (e) => uploadFile(e.target.files[0], 'image'));
+    document.getElementById('videoInput').addEventListener('change', (e) => uploadFile(e.target.files[0], 'video'));
+
     async function generateUniqueID() {
       let isUnique = false, newID = "";
       while (!isUnique) {
@@ -141,7 +124,6 @@
       return newID;
     }
 
-    // 2. Auth Functions
     window.handleRegister = async () => {
       const name = document.getElementById("regName").value.trim();
       const pass = document.getElementById("regPass").value.trim();
@@ -171,7 +153,6 @@
       document.getElementById("authModal").style.display = "none";
     }
 
-    // 3. Connect Chat
     window.connectChat = async () => {
       const targetID = document.getElementById("targetIDInput").value.trim();
       if (!targetID || targetID === currentUser.userID) return alert("မှန်ကန်သော သူငယ်ချင်း ID ရိုက်ထည့်ပါ!");
@@ -179,7 +160,6 @@
       loadMessages();
     };
 
-    // 4. Load Realtime Messages (Text, Image & Video)
     function loadMessages() {
       if (unsubscribeChat) unsubscribeChat();
       const q = query(collection(db, "chats", currentChatID, "messages"), orderBy("timestamp", "asc"));
@@ -206,11 +186,10 @@
       });
     }
 
-    // 5. Send Text
     window.sendTextMessage = async () => {
       const input = document.getElementById("msgInput");
       const text = input.value.trim();
-      if (!text || !currentChatID) return;
+      if (!text || !currentChatID) return alert("သူငယ်ချင်း ID အရင် ရိုက်ထည့်ပါ!");
       input.value = "";
       await addDoc(collection(db, "chats", currentChatID, "messages"), {
         senderID: currentUser.userID,
@@ -220,30 +199,42 @@
       });
     };
 
-    // 6. Upload Image & Video (Data-Saved Direct Upload)
-    window.uploadMedia = async (mediaType) => {
-      const inputId = mediaType === 'image' ? 'imageInput' : 'videoInput';
-      const fileInput = document.getElementById(inputId);
-      const file = fileInput.files[0];
-      if (!file || !currentChatID) return;
+    // Improved Upload Function with Progress & Error Catching
+    function uploadFile(file, type) {
+      if (!file || !currentChatID) return alert("သူငယ်ချင်း ID ရိုက်ထည့်ပြီးမှ ဖိုင်ရွေးပါ!");
 
-      const folder = mediaType === 'image' ? 'chat_images' : 'chat_videos';
-      const storageRef = ref(storage, `${folder}/${Date.now()}_${file.name}`);
-      
-      alert(`${mediaType === 'image' ? 'ဓာတ်ပုံ' : 'ဗီဒီယို'} ပေးပို့နေပါသည်... ခေတ္တစောင့်ပါ`);
-      
-      await uploadBytes(storageRef, file);
-      const fileUrl = await getDownloadURL(storageRef);
+      const statusBar = document.getElementById("statusBar");
+      statusBar.style.display = "block";
+      statusBar.innerText = `${type === 'image' ? 'ဓာတ်ပုံ' : 'ဗီဒီယို'} ပို့နေပါသည်... 0%`;
 
-      await addDoc(collection(db, "chats", currentChatID, "messages"), {
-        senderID: currentUser.userID,
-        type: mediaType,
-        fileUrl: fileUrl,
-        timestamp: serverTimestamp()
-      });
-      fileInput.value = "";
-    };
+      const storageRef = ref(storage, `chat_media/${Date.now()}_${file.name}`);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on('state_changed', 
+        (snapshot) => {
+          const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+          statusBar.innerText = `${type === 'image' ? 'ဓာတ်ပုံ' : 'ဗီဒီယို'} ပို့နေပါသည်... ${progress}%`;
+        }, 
+        (error) => {
+          console.error("Upload error:", error);
+          alert("ဖိုင်ပို့၍ မရပါ: " + error.message + "\n(Firebase Storage Rules ကို စစ်ဆေးပေးပါ)");
+          statusBar.style.display = "none";
+        }, 
+        async () => {
+          const fileUrl = await getDownloadURL(uploadTask.snapshot.ref);
+          await addDoc(collection(db, "chats", currentChatID, "messages"), {
+            senderID: currentUser.userID,
+            type: type,
+            fileUrl: fileUrl,
+            timestamp: serverTimestamp()
+          });
+          statusBar.style.display = "none";
+          document.getElementById('imageInput').value = "";
+          document.getElementById('videoInput').value = "";
+        }
+      );
+    }
   </script>
 </body>
-        </html>
+  </html>
   
