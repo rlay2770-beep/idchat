@@ -212,7 +212,6 @@
       ]
     };
 
-    // Request Notification Permission
     function requestNotificationPermission() {
       if ("Notification" in window) {
         Notification.requestPermission();
@@ -422,7 +421,6 @@
         });
         chatArea.scrollTop = chatArea.scrollHeight;
 
-        // နောက်ဆုံးမက်ဆေ့ခ်ျသစ်အတွက် Push Notification ပို့ခြင်း
         if (!isFirstLoad && snapshot.docChanges().length > 0) {
           snapshot.docChanges().forEach((change) => {
             if (change.type === "added" && change.doc.data().senderID !== currentUser.userID) {
@@ -453,17 +451,26 @@
     function createPeerConnection(targetID) {
       peerConnection = new RTCPeerConnection(rtcConfig);
 
-      localStream.getTracks().forEach(track => {
-        peerConnection.addTrack(track, localStream);
-      });
+      if (localStream) {
+        localStream.getTracks().forEach(track => {
+          peerConnection.addTrack(track, localStream);
+        });
+      }
 
       peerConnection.ontrack = (event) => {
-        document.getElementById("remoteVideo").srcObject = event.streams[0];
+        const remoteVideo = document.getElementById("remoteVideo");
+        if (remoteVideo.srcObject !== event.streams[0]) {
+          remoteVideo.srcObject = event.streams[0];
+          
+          if (audioCtx && audioCtx.state === 'suspended') {
+            audioCtx.resume();
+          }
+        }
       };
 
       peerConnection.onicecandidate = async (event) => {
-        if (event.candidate) {
-          await addDoc(collection(db, "calls", targetID, "candidates"), event.candidate.toJSON());
+        if (event.candidate && targetID) {
+          await addDoc(collection(db, "calls", targetID, "candidates"), event.candidate.toJSON()).catch(() => {});
         }
       };
     }
@@ -493,14 +500,25 @@
 
     window.startCall = async () => {
       window.initAudioContext();
-      if (!targetUser) return alert("ခေါ်ဆိုလိုသော အဆက်အသွယ် (Contact) ကို အရင် နှိပ်ပါ!");
+      
+      if (!targetUser || !targetUser.userID) {
+        return alert("ခေါ်ဆိုလိုသော အဆက်အသွယ် (Contact) ကို အရင် နှိပ်ပါ သို့မဟုတ် Username ရိုက်ထည့်၍ ချိတ်ဆက်ပါ!");
+      }
 
       activeCallTargetID = targetUser.userID;
 
       try {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        localStream = await navigator.mediaDevices.getUserMedia({ 
+          video: true, 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          } 
+        });
         document.getElementById("localVideo").srcObject = localStream;
       } catch (err) {
+        console.error("Camera/Mic Error:", err);
         return alert("ကင်မရာ သို့မဟုတ် မိုက်ခရိုဖုန်း အသုံးပြုခွင့် ပိတ်ထားပါသည်။");
       }
 
@@ -521,7 +539,7 @@
         offer: { type: offer.type, sdp: offer.sdp }
       });
 
-      onSnapshot(doc(doc(db, "calls", targetUser.userID)), async (snapshot) => {
+      onSnapshot(doc(db, "calls", targetUser.userID), async (snapshot) => {
         if (!snapshot.exists()) {
           resetCallState();
           return;
@@ -533,6 +551,10 @@
           const remoteDesc = new RTCSessionDescription(data.answer);
           await peerConnection.setRemoteDescription(remoteDesc);
           document.getElementById("callStatusText").innerText = "ဗီဒီယို ဖုန်းခေါ်ဆိုမှု စတင်ပါပြီ";
+          
+          if (audioCtx && audioCtx.state === 'suspended') {
+            audioCtx.resume();
+          }
         }
       });
 
@@ -541,7 +563,7 @@
         snapshot.docChanges().forEach(async (change) => {
           if (change.type === "added") {
             const candidate = new RTCIceCandidate(change.doc.data());
-            if (peerConnection) {
+            if (peerConnection && peerConnection.remoteDescription) {
               await peerConnection.addIceCandidate(candidate).catch(() => {});
             }
           }
@@ -556,10 +578,18 @@
       document.getElementById("callStatusText").innerText = "ချိတ်ဆက်နေသည်...";
 
       try {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        localStream = await navigator.mediaDevices.getUserMedia({ 
+          video: true, 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          } 
+        });
         document.getElementById("localVideo").srcObject = localStream;
       } catch (err) {
-        return alert("ကင်မရာ ဖွင့်မရပါ။");
+        console.error("Mic/Cam Accept Error:", err);
+        return alert("ကင်မရာ သို့မဟုတ် မိုက်ခရိုဖုန်း ဖွင့်မရပါ။");
       }
 
       const callerID = incomingCallData.callerID;
@@ -587,6 +617,10 @@
       });
 
       document.getElementById("callStatusText").innerText = "ဗီဒီယို ဖုန်းခေါ်ဆိုမှု စတင်ပါပြီ";
+      
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
     };
 
     window.endCall = async () => {
@@ -615,4 +649,4 @@
     }
   </script>
 </body>
-</html
+</html>
