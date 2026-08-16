@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IDChat - Real WebRTC & AI Learning</title>
+  <title>IDChat - WebRTC & Username System</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
     body { background-color: #f0f2f5; display: flex; justify-content: center; height: 100vh; }
@@ -25,6 +25,10 @@
     .search-box { padding: 10px; border-bottom: 1px solid #eee; display: flex; gap: 5px; background: #fafafa; }
     .search-box input { flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 20px; outline: none; }
     .search-box button { padding: 8px 15px; background: #0084ff; color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; }
+
+    .recent-contacts { padding: 8px 10px; background: #fff; border-bottom: 1px solid #eee; display: flex; gap: 8px; overflow-x: auto; white-space: nowrap; }
+    .contact-chip { background: #e9ecef; border-radius: 15px; padding: 4px 12px; font-size: 12px; color: #333; cursor: pointer; display: inline-block; }
+    .contact-chip:hover { background: #0084ff; color: white; }
 
     .content-section { flex: 1; display: none; flex-direction: column; overflow: hidden; }
     .content-section.active { display: flex; }
@@ -57,13 +61,14 @@
   <div class="auth-overlay" id="authModal">
     <div class="auth-box">
       <h3 style="color: #0084ff; margin-bottom: 5px;">IDChat</h3>
-      <p style="font-size: 12px; color: #666; margin-bottom: 15px;">Privacy အပြည့်ဖြင့် အခမဲ့ ဆက်သွယ်ပါ</p>
-      <input type="text" id="regName" placeholder="သင့်အမည်">
-      <input type="password" id="regPass" placeholder="စကားဝှက် သတ်မှတ်ပါ">
+      <p style="font-size: 12px; color: #666; margin-bottom: 15px;">Username သတ်မှတ်၍ အလွယ်တကူ သုံးပါ</p>
+      <input type="text" id="regName" placeholder="သင့်အမည် (ဥပမာ - Mya Mya)">
+      <input type="text" id="regUsername" placeholder="Username (ဥပမာ - myamya)">
+      <input type="password" id="regPass" placeholder="စကားဝှက်">
       <button onclick="handleRegister()">အကောင့်အသစ်ဖွင့်မည်</button>
       <hr style="margin: 15px 0; border: none; border-top: 1px solid #eee;">
-      <input type="text" id="loginID" placeholder="သင့် ပုံသေ ID (ဥပမာ: 343696)">
-      <button onclick="handleLogin()" style="background: #6c757d;">ID ဖြင့် Login ဝင်မည်</button>
+      <input type="text" id="loginUsername" placeholder="Username ဖြင့် Login ဝင်ရန်">
+      <button onclick="handleLogin()" style="background: #6c757d;">Login ဝင်မည်</button>
     </div>
   </div>
 
@@ -85,12 +90,12 @@
   <div class="app-container">
     <div class="header">
       <span>IDChat</span>
-      <button class="call-btn" onclick="startCall()">📹 Video Call</button>
+      <button class="call-btn" onclick="startCall()">📹 Call</button>
     </div>
     
     <div class="user-card">
-      <span>မိမိ ID: <b id="myIDDisplay">-</b></span>
-      <span id="userNameDisplay">-</span>
+      <span>အကောင့်: <b id="userNameDisplay">-</b></span>
+      <span>Username: <b id="myUsernameDisplay">-</b></span>
     </div>
 
     <!-- Navigation Tabs -->
@@ -102,13 +107,18 @@
     <!-- Chat Tab Section -->
     <div id="chatTab" class="content-section active">
       <div class="search-box">
-        <input type="text" id="targetIDInput" placeholder="သူငယ်ချင်း၏ ID ရိုက်ထည့်ပါ">
+        <input type="text" id="targetUsernameInput" placeholder="သူငယ်ချင်း Username ရိုက်ထည့်ပါ">
         <button onclick="connectChat()">စကားပြောမည်</button>
+      </div>
+
+      <!-- Saved Contacts List -->
+      <div class="recent-contacts" id="recentContacts">
+        <span style="font-size: 12px; color: #888; align-self: center;">အဆက်အသွယ်များ: </span>
       </div>
 
       <div class="chat-area" id="chatArea">
         <div style="text-align: center; color: #999; margin-top: 30px; font-size: 13px;">
-          သူငယ်ချင်း ID ကို ရိုက်ထည့်ပြီး စာစတင်ပို့ပါ
+          Username ရိုက်ထည့်၍ စကားစတင်ပြောပါ
         </div>
       </div>
 
@@ -144,6 +154,7 @@
     const db = getFirestore(app);
 
     let currentUser = null;
+    let targetUser = null;
     let currentChatID = null;
     let unsubscribeChat = null;
     let activeCallTargetID = null;
@@ -217,42 +228,89 @@
     window.handleRegister = async () => {
       window.initAudioContext();
       const name = document.getElementById("regName").value.trim();
+      const username = document.getElementById("regUsername").value.trim().toLowerCase().replace("@","");
       const pass = document.getElementById("regPass").value.trim();
-      if (!name || !pass) return alert("အမည်နှင့် စကားဝှက် ရိုက်ထည့်ပါ!");
+      
+      if (!name || !username || !pass) return alert("အချက်အလက်များကို ပြည့်စုံစွာ ရိုက်ထည့်ပါ!");
+
+      const uSnap = await getDoc(doc(db, "usernames", username));
+      if (uSnap.exists()) return alert("ဤ Username ယူထားပြီးဖြစ်ပါသည်။ အခြားနာမည်ပြောင်းပါ!");
 
       const userID = await generateUniqueID();
-      await setDoc(doc(db, "users", userID), { userID, name, password: pass, createdAt: serverTimestamp() });
-      alert(`အကောင့် အောင်မြင်စွာ ဖန်တီးပြီးပါပြီ!\nသင့်၏ ပုံသေ ID: ${userID}`);
-      loginSuccess(userID, name);
+      
+      await setDoc(doc(db, "users", userID), { userID, name, username, password: pass, createdAt: serverTimestamp() });
+      await setDoc(doc(db, "usernames", username), { userID });
+      
+      alert(`အကောင့် အောင်မြင်စွာ ဖန်တီးပြီးပါပြီ!\nသင့်၏ Username: @${username}`);
+      loginSuccess(userID, name, username);
     };
 
     window.handleLogin = async () => {
       window.initAudioContext();
-      const userID = document.getElementById("loginID").value.trim();
-      if (!userID) return alert("ID ရိုက်ထည့်ပါ!");
-      const docSnap = await getDoc(doc(db, "users", userID));
-      if (docSnap.exists()) {
-        loginSuccess(userID, docSnap.data().name);
+      const username = document.getElementById("loginUsername").value.trim().toLowerCase().replace("@","");
+      if (!username) return alert("Username ရိုက်ထည့်ပါ!");
+      
+      const uSnap = await getDoc(doc(db, "usernames", username));
+      if (uSnap.exists()) {
+        const userID = uSnap.data().userID;
+        const userDoc = await getDoc(doc(db, "users", userID));
+        loginSuccess(userID, userDoc.data().name, username);
       } else {
-        alert("ဤ ID ဖြင့် အကောင့်မရှိပါ!");
+        alert("ဤ Username ဖြင့် အကောင့်မရှိပါ!");
       }
     };
 
-    function loginSuccess(userID, name) {
-      currentUser = { userID, name };
-      document.getElementById("myIDDisplay").innerText = userID;
+    function loginSuccess(userID, name, username) {
+      currentUser = { userID, name, username };
+      document.getElementById("myUsernameDisplay").innerText = "@" + username;
       document.getElementById("userNameDisplay").innerText = name;
       document.getElementById("authModal").style.display = "none";
       
+      loadRecentContacts();
       listenForIncomingCalls();
     }
 
-    window.connectChat = async () => {
-      const targetID = document.getElementById("targetIDInput").value.trim();
-      if (!targetID || targetID === currentUser.userID) return alert("မှန်ကန်သော သူငယ်ချင်း ID ရိုက်ထည့်ပါ!");
+    window.connectChat = async (targetUsername = null) => {
+      const uname = targetUsername || document.getElementById("targetUsernameInput").value.trim().toLowerCase().replace("@","");
+      if (!uname || uname === currentUser.username) return alert("မှန်ကန်သော Username ရိုက်ထည့်ပါ!");
+
+      const uSnap = await getDoc(doc(db, "usernames", uname));
+      if (!uSnap.exists()) return alert("ဤ Username ဖြင့် အသုံးပြုသူ ရှာမတွေ့ပါ!");
+
+      const targetID = uSnap.data().userID;
+      const tUserDoc = await getDoc(doc(db, "users", targetID));
+      
+      targetUser = { userID: targetID, name: tUserDoc.data().name, username: uname };
       currentChatID = [currentUser.userID, targetID].sort().join("_");
+      
+      saveRecentContact(targetUser);
       loadMessages();
     };
+
+    function saveRecentContact(user) {
+      let contacts = JSON.parse(localStorage.getItem("recent_contacts") || "[]");
+      if (!contacts.some(c => c.username === user.username)) {
+        contacts.push(user);
+        localStorage.setItem("recent_contacts", JSON.stringify(contacts));
+      }
+      loadRecentContacts();
+    }
+
+    function loadRecentContacts() {
+      let contacts = JSON.parse(localStorage.getItem("recent_contacts") || "[]");
+      const container = document.getElementById("recentContacts");
+      container.innerHTML = '<span style="font-size: 12px; color: #888; align-self: center;">အဆက်အသွယ်များ: </span>';
+      contacts.forEach(c => {
+        const chip = document.createElement("div");
+        chip.className = "contact-chip";
+        chip.innerText = `@${c.username}`;
+        chip.onclick = () => {
+          document.getElementById("targetUsernameInput").value = c.username;
+          window.connectChat(c.username);
+        };
+        container.appendChild(chip);
+      });
+    }
 
     function loadMessages() {
       if (unsubscribeChat) unsubscribeChat();
@@ -276,7 +334,7 @@
     window.sendTextMessage = async () => {
       const input = document.getElementById("msgInput");
       const text = input.value.trim();
-      if (!text || !currentChatID) return alert("သူငယ်ချင်း ID အရင် ရိုက်ထည့်ပါ!");
+      if (!text || !currentChatID) return alert("သူငယ်ချင်း Username အရင် ရိုက်ထည့်ပါ!");
       input.value = "";
       await addDoc(collection(db, "chats", currentChatID, "messages"), {
         senderID: currentUser.userID,
@@ -314,7 +372,7 @@
             incomingCallData = data;
             activeCallTargetID = data.callerID;
             document.getElementById("videoCallOverlay").style.display = "flex";
-            document.getElementById("callStatusText").innerText = `${data.callerName} ထံမှ Video Call ဝင်လာပါသည်...`;
+            document.getElementById("callStatusText").innerText = `${data.callerName} (@${data.callerUsername}) ထံမှ Video Call ဝင်လာပါသည်...`;
             document.getElementById("acceptCallBtn").style.display = "flex";
             
             playRingtone();
@@ -329,10 +387,9 @@
 
     window.startCall = async () => {
       window.initAudioContext();
-      const targetID = document.getElementById("targetIDInput").value.trim();
-      if (!targetID) return alert("ခေါ်ဆိုလိုသော သူငယ်ချင်း ID ကို ရိုက်ထည့်ပါ!");
+      if (!targetUser) return alert("ခေါ်ဆိုလိုသော သူငယ်ချင်း၏ Username ကို ရိုက်ထည့်၍ မက်ဆေ့ခ်ျ အရင် ချိတ်ဆက်ပါ!");
 
-      activeCallTargetID = targetID;
+      activeCallTargetID = targetUser.userID;
 
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -346,18 +403,19 @@
       document.getElementById("acceptCallBtn").style.display = "none";
 
       playRingtone();
-      createPeerConnection(targetID);
+      createPeerConnection(targetUser.userID);
 
       const offer = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(offer);
 
-      await setDoc(doc(db, "calls", targetID), {
+      await setDoc(doc(db, "calls", targetUser.userID), {
         callerID: currentUser.userID,
         callerName: currentUser.name,
+        callerUsername: currentUser.username,
         offer: { type: offer.type, sdp: offer.sdp }
       });
 
-      onSnapshot(doc(db, "calls", targetID), async (snapshot) => {
+      onSnapshot(doc(db, "calls", targetUser.userID), async (snapshot) => {
         if (!snapshot.exists()) {
           resetCallState();
           return;
@@ -451,5 +509,4 @@
     }
   </script>
 </body>
-        </html>
-  
+</html>
