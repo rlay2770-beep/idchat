@@ -195,6 +195,7 @@
     let currentChatID = null;
     let unsubscribeChat = null;
     let activeCallTargetID = null;
+    let unsubscribeCallEndListener = null;
     let unreadMap = {};
     
     let localStream = null;
@@ -449,6 +450,17 @@
       }
     }
 
+    // Android APK ဖုန်းချလျှင် Freeze ဖြစ်ခြင်းမှ ကာကွယ်ပေးသည့် Listener
+    function listenForCallEnd(targetID) {
+      if (unsubscribeCallEndListener) unsubscribeCallEndListener();
+      const callDocRef = doc(db, "calls", targetID);
+      unsubscribeCallEndListener = onSnapshot(callDocRef, (snapshot) => {
+        if (!snapshot.exists()) {
+          resetCallState();
+        }
+      });
+    }
+
     function listenForIncomingCalls() {
       if (!currentUser) return;
       onSnapshot(doc(db, "calls", currentUser.userID), (snapshot) => {
@@ -456,10 +468,12 @@
           const data = snapshot.data();
           if (data && data.offer && !peerConnection) {
             incomingCallData = data;
+            activeCallTargetID = data.callerID;
             document.getElementById("videoCallOverlay").style.display = "flex";
             document.getElementById("callStatusText").innerText = `${data.callerName} (@${data.callerUsername}) ထံမှ ဖုန်းခေါ်ဆိုနေပါသည်...`;
             document.getElementById("acceptCallBtn").style.display = "flex";
             playRingtone();
+            listenForCallEnd(currentUser.userID);
           }
         }
       });
@@ -494,6 +508,8 @@
         callerUsername: currentUser.username,
         offer: { type: offer.type, sdp: offer.sdp }
       });
+
+      listenForCallEnd(targetUser.userID);
 
       onSnapshot(doc(db, "calls", targetUser.userID), async (snapshot) => {
         if (!snapshot.exists()) {
@@ -564,17 +580,26 @@
     };
 
     window.endCall = async () => {
-      if (currentUser) {
-        await deleteDoc(doc(db, "calls", currentUser.userID)).catch(() => {});
+      try {
+        if (currentUser) {
+          await deleteDoc(doc(db, "calls", currentUser.userID)).catch(() => {});
+        }
+        if (activeCallTargetID) {
+          await deleteDoc(doc(db, "calls", activeCallTargetID)).catch(() => {});
+        }
+      } catch (err) {
+        console.error("End call error: ", err);
+      } finally {
+        resetCallState();
       }
-      if (activeCallTargetID) {
-        await deleteDoc(doc(db, "calls", activeCallTargetID)).catch(() => {});
-      }
-      resetCallState();
     };
 
     function resetCallState() {
       stopRingtone();
+      if (unsubscribeCallEndListener) {
+        unsubscribeCallEndListener();
+        unsubscribeCallEndListener = null;
+      }
       if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
         localStream = null;
@@ -583,10 +608,13 @@
         peerConnection.close();
         peerConnection = null;
       }
-      document.getElementById("remoteVideo").srcObject = null;
-      document.getElementById("localVideo").srcObject = null;
+      const remoteVideo = document.getElementById("remoteVideo");
+      const localVideo = document.getElementById("localVideo");
+      if (remoteVideo) remoteVideo.srcObject = null;
+      if (localVideo) localVideo.srcObject = null;
+      
       document.getElementById("videoCallOverlay").style.display = "none";
     }
   </script>
 </body>
-</html
+</html>
