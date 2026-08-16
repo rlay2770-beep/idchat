@@ -27,8 +27,9 @@
     .search-box button { padding: 8px 15px; background: #0084ff; color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; }
 
     .recent-contacts { padding: 8px 10px; background: #fff; border-bottom: 1px solid #eee; display: flex; gap: 8px; overflow-x: auto; white-space: nowrap; }
-    .contact-chip { background: #e9ecef; border-radius: 15px; padding: 4px 12px; font-size: 12px; color: #333; cursor: pointer; display: inline-block; }
+    .contact-chip { background: #e9ecef; border-radius: 15px; padding: 4px 12px; font-size: 12px; color: #333; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
     .contact-chip:hover { background: #0084ff; color: white; }
+    .unread-dot { width: 8px; height: 8px; background-color: #ff3b30; border-radius: 50%; display: inline-block; }
 
     .content-section { flex: 1; display: none; flex-direction: column; overflow: hidden; }
     .content-section.active { display: flex; }
@@ -38,7 +39,6 @@
     .message.sent { background: #0084ff; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
     .message.received { background: #ffffff; color: #333; align-self: flex-start; border-bottom-left-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     
-    /* Auto-expanding Input Box Styling */
     .input-area { padding: 10px; border-top: 1px solid #eee; display: flex; gap: 8px; align-items: flex-end; background: white; }
     .input-wrapper { flex: 1; position: relative; display: flex; align-items: center; }
     .input-area textarea { 
@@ -79,7 +79,6 @@
 
     .ai-frame { width: 100%; height: 100%; border: none; }
 
-    /* Video Call Overlay Screen */
     .video-call-overlay { display: none; position: fixed; inset: 0; background: #111; z-index: 2000; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px; }
     .video-container { width: 100%; height: 75%; position: relative; background: #222; border-radius: 15px; overflow: hidden; display: flex; justify-content: center; align-items: center; }
     .local-video { width: 100px; height: 140px; background: #000; border: 2px solid #fff; border-radius: 10px; position: absolute; top: 10px; right: 10px; object-fit: cover; z-index: 10; }
@@ -157,11 +156,9 @@
         </div>
       </div>
 
-      <!-- Updated Auto-expanding Textarea & Send Button -->
       <div class="input-area">
         <div class="input-wrapper">
           <textarea id="msgInput" placeholder="စာရိုက်ပါ..." rows="1" oninput="autoResize(this)"></textarea>
-
           <button class="clear-btn" id="clearBtn" onclick="clearInput()">✖</button>
         </div>
         <button class="send-btn" onclick="sendTextMessage()">➤</button>
@@ -198,6 +195,7 @@
     let currentChatID = null;
     let unsubscribeChat = null;
     let activeCallTargetID = null;
+    let unreadMap = {};
     
     let localStream = null;
     let peerConnection = null;
@@ -228,7 +226,6 @@
       element.classList.add('active');
     };
 
-    // Text Box Resize and Clear Logic
     window.autoResize = (textarea) => {
       textarea.style.height = '42px';
       if (textarea.scrollHeight > 42) {
@@ -326,11 +323,12 @@
       
       loadRecentContacts();
       listenForIncomingCalls();
+      listenForBackgroundMessages();
     }
 
     window.connectChat = async (targetUsername = null) => {
       const uname = targetUsername || document.getElementById("targetUsernameInput").value.trim().toLowerCase().replace("@","");
-      if (!uname || uname === currentUser.username) return alert("မှန်ကန်သော Username ရိုက်ထည့်ပါ!");
+      if (!uname || (currentUser && uname === currentUser.username)) return alert("မှန်ကန်သော Username ရိုက်ထည့်ပါ!");
 
       const uSnap = await getDoc(doc(db, "usernames", uname));
       if (!uSnap.exists()) return alert("ဤ Username ဖြင့် အသုံးပြုသူ ရှာမတွေ့ပါ!");
@@ -341,6 +339,10 @@
       targetUser = { userID: targetID, name: tUserDoc.data().name, username: uname };
       currentChatID = [currentUser.userID, targetID].sort().join("_");
       
+      if (unreadMap[uname]) {
+        delete unreadMap[uname];
+      }
+
       saveRecentContact(targetUser);
       loadMessages();
     };
@@ -361,12 +363,29 @@
       contacts.forEach(c => {
         const chip = document.createElement("div");
         chip.className = "contact-chip";
-        chip.innerText = `@${c.username}`;
+        chip.innerHTML = `@${c.username}` + (unreadMap[c.username] ? ' <span class="unread-dot"></span>' : '');
         chip.onclick = () => {
           document.getElementById("targetUsernameInput").value = c.username;
           window.connectChat(c.username);
         };
         container.appendChild(chip);
+      });
+    }
+
+    function listenForBackgroundMessages() {
+      let contacts = JSON.parse(localStorage.getItem("recent_contacts") || "[]");
+      contacts.forEach(c => {
+        const chatID = [currentUser.userID, c.userID].sort().join("_");
+        const q = query(collection(db, "chats", chatID, "messages"), orderBy("timestamp", "desc"));
+        onSnapshot(q, (snapshot) => {
+          if (!snapshot.empty) {
+            const latestMsg = snapshot.docs[0].data();
+            if (latestMsg.senderID !== currentUser.userID && (!targetUser || targetUser.username !== c.username)) {
+              unreadMap[c.username] = true;
+              loadRecentContacts();
+            }
+          }
+        });
       });
     }
 
@@ -404,42 +423,43 @@
       window.clearInput();
     };
 
-    // --- WebRTC Video Call Core ---
     function createPeerConnection(targetID) {
-      peerConnection = new RTCPeerConnection(rtcConfig);
+      try {
+        peerConnection = new RTCPeerConnection(rtcConfig);
 
-      localStream.getTracks().forEach(track => {
-        peerConnection.addTrack(track, localStream);
-      });
-
-      peerConnection.ontrack = (event) => {
-        document.getElementById("remoteVideo").srcObject = event.streams[0];
-      };
-
-      peerConnection.onicecandidate = async (event) => {
-        if (event.candidate) {
-          await addDoc(collection(db, "calls", targetID, "candidates"), event.candidate.toJSON());
+        if (localStream) {
+          localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
         }
-      };
+
+        peerConnection.ontrack = (event) => {
+          const remoteVideo = document.getElementById("remoteVideo");
+          if (remoteVideo && event.streams[0]) {
+            remoteVideo.srcObject = event.streams[0];
+          }
+        };
+
+        peerConnection.onicecandidate = (event) => {
+          if (event.candidate) {
+            const candidateCol = collection(db, "calls", targetID, "candidates");
+            addDoc(candidateCol, event.candidate.toJSON()).catch(() => {});
+          }
+        };
+      } catch (err) {
+        console.error("PeerConnection error: ", err);
+      }
     }
 
     function listenForIncomingCalls() {
-      onSnapshot(doc(db, "calls", currentUser.userID), async (snapshot) => {
+      if (!currentUser) return;
+      onSnapshot(doc(db, "calls", currentUser.userID), (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data();
-          
           if (data && data.offer && !peerConnection) {
             incomingCallData = data;
-            activeCallTargetID = data.callerID;
             document.getElementById("videoCallOverlay").style.display = "flex";
-            document.getElementById("callStatusText").innerText = `${data.callerName} (@${data.callerUsername}) ထံမှ Video Call ဝင်လာပါသည်...`;
+            document.getElementById("callStatusText").innerText = `${data.callerName} (@${data.callerUsername}) ထံမှ ဖုန်းခေါ်ဆိုနေပါသည်...`;
             document.getElementById("acceptCallBtn").style.display = "flex";
-            
             playRingtone();
-          }
-        } else {
-          if (document.getElementById("videoCallOverlay").style.display === "flex") {
-            resetCallState();
           }
         }
       });
@@ -569,4 +589,4 @@
     }
   </script>
 </body>
-</html>
+</html
