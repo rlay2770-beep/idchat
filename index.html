@@ -260,6 +260,7 @@
     function playRingtone() {
       try {
         window.initAudioContext();
+        stopRingtone();
         ringtoneInterval = setInterval(() => {
           if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
           if (audioCtx) {
@@ -447,8 +448,13 @@
       window.clearInput();
     };
 
-    // --- WebRTC Video Call Core ---
+    // --- Robust WebRTC Core ---
     function createPeerConnection(targetID) {
+      if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+      }
+      
       peerConnection = new RTCPeerConnection(rtcConfig);
 
       if (localStream) {
@@ -459,12 +465,12 @@
 
       peerConnection.ontrack = (event) => {
         const remoteVideo = document.getElementById("remoteVideo");
-        if (remoteVideo.srcObject !== event.streams[0]) {
+        if (event.streams && event.streams[0]) {
           remoteVideo.srcObject = event.streams[0];
-          
-          if (audioCtx && audioCtx.state === 'suspended') {
-            audioCtx.resume();
-          }
+          remoteVideo.play().catch(e => console.log(e));
+        }
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume();
         }
       };
 
@@ -501,25 +507,31 @@
     window.startCall = async () => {
       window.initAudioContext();
       
+      // Target User Guard Validation
       if (!targetUser || !targetUser.userID) {
-        return alert("ခေါ်ဆိုလိုသော အဆက်အသွယ် (Contact) ကို အရင် နှိပ်ပါ သို့မဟုတ် Username ရိုက်ထည့်၍ ချိတ်ဆက်ပါ!");
+        alert("ခေါ်ဆိုလိုသော အဆက်အသွယ် (Contact) ကို အရင် နှိပ်ပါ သို့မဟုတ် Username ရိုက်ထည့်၍ ချိတ်ဆက်ပါ!");
+        resetCallState();
+        return;
       }
 
       activeCallTargetID = targetUser.userID;
 
       try {
+        if (localStream) {
+          localStream.getTracks().forEach(t => t.stop());
+        }
         localStream = await navigator.mediaDevices.getUserMedia({ 
           video: true, 
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          } 
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
         });
-        document.getElementById("localVideo").srcObject = localStream;
+        const localVid = document.getElementById("localVideo");
+        localVid.srcObject = localStream;
+        localVid.play().catch(() => {});
       } catch (err) {
         console.error("Camera/Mic Error:", err);
-        return alert("ကင်မရာ သို့မဟုတ် မိုက်ခရိုဖုန်း အသုံးပြုခွင့် ပိတ်ထားပါသည်။");
+        alert("ကင်မရာ သို့မဟုတ် မိုက်ခရိုဖုန်း အသုံးပြုခွင့် ပိတ်ထားပါသည်။");
+        resetCallState();
+        return;
       }
 
       document.getElementById("videoCallOverlay").style.display = "flex";
@@ -529,15 +541,21 @@
       playRingtone();
       createPeerConnection(targetUser.userID);
 
-      const offer = await peerConnection.createOffer();
-      await peerConnection.setLocalDescription(offer);
+      try {
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
 
-      await setDoc(doc(db, "calls", targetUser.userID), {
-        callerID: currentUser.userID,
-        callerName: currentUser.name,
-        callerUsername: currentUser.username,
-        offer: { type: offer.type, sdp: offer.sdp }
-      });
+        await setDoc(doc(db, "calls", targetUser.userID), {
+          callerID: currentUser.userID,
+          callerName: currentUser.name,
+          callerUsername: currentUser.username,
+          offer: { type: offer.type, sdp: offer.sdp }
+        });
+      } catch (err) {
+        console.error("Offer Creation Error:", err);
+        resetCallState();
+        return;
+      }
 
       onSnapshot(doc(db, "calls", targetUser.userID), async (snapshot) => {
         if (!snapshot.exists()) {
@@ -578,31 +596,39 @@
       document.getElementById("callStatusText").innerText = "ချိတ်ဆက်နေသည်...";
 
       try {
+        if (localStream) {
+          localStream.getTracks().forEach(t => t.stop());
+        }
         localStream = await navigator.mediaDevices.getUserMedia({ 
           video: true, 
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          } 
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
         });
-        document.getElementById("localVideo").srcObject = localStream;
+        const localVid = document.getElementById("localVideo");
+        localVid.srcObject = localStream;
+        localVid.play().catch(() => {});
       } catch (err) {
         console.error("Mic/Cam Accept Error:", err);
-        return alert("ကင်မရာ သို့မဟုတ် မိုက်ခရိုဖုန်း ဖွင့်မရပါ။");
+        alert("ကင်မရာ သို့မဟုတ် မိုက်ခရိုဖုန်း ဖွင့်မရပါ။");
+        resetCallState();
+        return;
       }
 
       const callerID = incomingCallData.callerID;
       createPeerConnection(callerID);
 
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingCallData.offer));
+      try {
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingCallData.offer));
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
 
-      const answer = await peerConnection.createAnswer();
-      await peerConnection.setLocalDescription(answer);
-
-      await updateDoc(doc(db, "calls", currentUser.userID), {
-        answer: { type: answer.type, sdp: answer.sdp }
-      });
+        await updateDoc(doc(db, "calls", currentUser.userID), {
+          answer: { type: answer.type, sdp: answer.sdp }
+        });
+      } catch (err) {
+        console.error("Answer Processing Error:", err);
+        resetCallState();
+        return;
+      }
 
       const candidatesCol = collection(db, "calls", callerID, "candidates");
       onSnapshot(candidatesCol, (snapshot) => {
@@ -643,8 +669,10 @@
         peerConnection.close();
         peerConnection = null;
       }
-      document.getElementById("remoteVideo").srcObject = null;
-      document.getElementById("localVideo").srcObject = null;
+      const remoteVid = document.getElementById("remoteVideo");
+      const localVid = document.getElementById("localVideo");
+      if (remoteVid) remoteVid.srcObject = null;
+      if (localVid) localVid.srcObject = null;
       document.getElementById("videoCallOverlay").style.display = "none";
     }
   </script>
