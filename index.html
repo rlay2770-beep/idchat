@@ -26,9 +26,8 @@
     .search-box input { flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 20px; outline: none; }
     .search-box button { padding: 8px 15px; background: #0084ff; color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; }
 
-    /* Enhanced Contact Chips Styling */
     .recent-contacts { padding: 8px 10px; background: #fff; border-bottom: 1px solid #eee; display: flex; gap: 8px; overflow-x: auto; white-space: nowrap; align-items: center; }
-    .contact-chip { background: #e9ecef; border-radius: 15px; padding: 5px 12px; font-size: 12px; color: #333; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease; border: 1px solid #ddd; }
+    .contact-chip { background: #e9ecef; border-radius: 15px; padding: 5px 12px; font-size: 12px; color: #333; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease; border: 1px solid #ddd; position: relative; }
     .contact-chip.active-target { background: #0084ff; color: white; border-color: #0073e6; font-weight: bold; }
     .contact-chip:hover { background: #0084ff; color: white; }
     .contact-delete-btn { font-size: 10px; border-radius: 50%; width: 14px; height: 14px; display: inline-flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.15); color: white; }
@@ -213,6 +212,19 @@
       ]
     };
 
+    // Request Notification Permission
+    function requestNotificationPermission() {
+      if ("Notification" in window) {
+        Notification.requestPermission();
+      }
+    }
+
+    function sendNotification(title, body) {
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification(title, { body: body });
+      }
+    }
+
     window.initAudioContext = () => {
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -285,6 +297,7 @@
 
     window.handleRegister = async () => {
       window.initAudioContext();
+      requestNotificationPermission();
       const name = document.getElementById("regName").value.trim();
       const username = document.getElementById("regUsername").value.trim().toLowerCase().replace("@","");
       const pass = document.getElementById("regPass").value.trim();
@@ -297,7 +310,7 @@
       const userID = await generateUniqueID();
       
       await setDoc(doc(db, "users", userID), { userID, name, username, password: pass, createdAt: serverTimestamp() });
-      await setDoc(doc(doc(db, "usernames", username)), { userID });
+      await setDoc(doc(db, "usernames", username), { userID });
       
       alert(`အကောင့် အောင်မြင်စွာ ဖန်တီးပြီးပါပြီ!\nသင့်၏ Username: @${username}`);
       loginSuccess(userID, name, username);
@@ -305,6 +318,7 @@
 
     window.handleLogin = async () => {
       window.initAudioContext();
+      requestNotificationPermission();
       const username = document.getElementById("loginUsername").value.trim().toLowerCase().replace("@","");
       if (!username) return alert("Username ရိုက်ထည့်ပါ!");
       
@@ -370,7 +384,6 @@
           <span class="contact-delete-btn" title="ဖျက်ရန်">×</span>
         `;
         
-        // Chip နှိပ်ပါက တိုက်ရိုက် Chat ချိတ်ဆက်မည်
         chip.onclick = (e) => {
           if (e.target.classList.contains('contact-delete-btn')) {
             e.stopPropagation();
@@ -395,6 +408,7 @@
       if (unsubscribeChat) unsubscribeChat();
       const q = query(collection(db, "chats", currentChatID, "messages"), orderBy("timestamp", "asc"));
       
+      let isFirstLoad = true;
       unsubscribeChat = onSnapshot(q, (snapshot) => {
         const chatArea = document.getElementById("chatArea");
         chatArea.innerHTML = "";
@@ -407,6 +421,16 @@
           chatArea.appendChild(msgDiv);
         });
         chatArea.scrollTop = chatArea.scrollHeight;
+
+        // နောက်ဆုံးမက်ဆေ့ခ်ျသစ်အတွက် Push Notification ပို့ခြင်း
+        if (!isFirstLoad && snapshot.docChanges().length > 0) {
+          snapshot.docChanges().forEach((change) => {
+            if (change.type === "added" && change.doc.data().senderID !== currentUser.userID) {
+              sendNotification(`IDChat - @${targetUser.username}`, change.doc.data().content);
+            }
+          });
+        }
+        isFirstLoad = false;
       });
     }
 
@@ -456,6 +480,7 @@
             document.getElementById("callStatusText").innerText = `${data.callerName} (@${data.callerUsername}) ထံမှ Video Call ဝင်လာပါသည်...`;
             document.getElementById("acceptCallBtn").style.display = "flex";
             
+            sendNotification("IDChat Video Call", `${data.callerName} (@${data.callerUsername}) ထံမှ Video Call ဝင်လာပါသည်...`);
             playRingtone();
           }
         } else {
@@ -496,7 +521,7 @@
         offer: { type: offer.type, sdp: offer.sdp }
       });
 
-      onSnapshot(doc(db, "calls", targetUser.userID), async (snapshot) => {
+      onSnapshot(doc(doc(db, "calls", targetUser.userID)), async (snapshot) => {
         if (!snapshot.exists()) {
           resetCallState();
           return;
@@ -590,4 +615,4 @@
     }
   </script>
 </body>
-</html>
+</html
