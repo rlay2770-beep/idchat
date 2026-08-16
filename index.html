@@ -26,12 +26,9 @@
     .search-box input { flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 20px; outline: none; }
     .search-box button { padding: 8px 15px; background: #0084ff; color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; }
 
-    .recent-contacts { padding: 8px 10px; background: #fff; border-bottom: 1px solid #eee; display: flex; gap: 8px; overflow-x: auto; white-space: nowrap; align-items: center; }
-    .contact-chip { background: #e9ecef; border-radius: 15px; padding: 5px 12px; font-size: 12px; color: #333; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease; border: 1px solid #ddd; position: relative; }
-    .contact-chip.active-target { background: #0084ff; color: white; border-color: #0073e6; font-weight: bold; }
+    .recent-contacts { padding: 8px 10px; background: #fff; border-bottom: 1px solid #eee; display: flex; gap: 8px; overflow-x: auto; white-space: nowrap; }
+    .contact-chip { background: #e9ecef; border-radius: 15px; padding: 4px 12px; font-size: 12px; color: #333; cursor: pointer; display: inline-block; }
     .contact-chip:hover { background: #0084ff; color: white; }
-    .contact-delete-btn { font-size: 10px; border-radius: 50%; width: 14px; height: 14px; display: inline-flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.15); color: white; }
-    .contact-delete-btn:hover { background: #dc3545; }
 
     .content-section { flex: 1; display: none; flex-direction: column; overflow: hidden; }
     .content-section.active { display: flex; }
@@ -41,6 +38,7 @@
     .message.sent { background: #0084ff; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
     .message.received { background: #ffffff; color: #333; align-self: flex-start; border-bottom-left-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     
+    /* Auto-expanding Input Box Styling */
     .input-area { padding: 10px; border-top: 1px solid #eee; display: flex; gap: 8px; align-items: flex-end; background: white; }
     .input-wrapper { flex: 1; position: relative; display: flex; align-items: center; }
     .input-area textarea { 
@@ -81,6 +79,7 @@
 
     .ai-frame { width: 100%; height: 100%; border: none; }
 
+    /* Video Call Overlay Screen */
     .video-call-overlay { display: none; position: fixed; inset: 0; background: #111; z-index: 2000; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px; }
     .video-container { width: 100%; height: 75%; position: relative; background: #222; border-radius: 15px; overflow: hidden; display: flex; justify-content: center; align-items: center; }
     .local-video { width: 100px; height: 140px; background: #000; border: 2px solid #fff; border-radius: 10px; position: absolute; top: 10px; right: 10px; object-fit: cover; z-index: 10; }
@@ -154,14 +153,15 @@
 
       <div class="chat-area" id="chatArea">
         <div style="text-align: center; color: #999; margin-top: 30px; font-size: 13px;">
-          Username ရိုက်ထည့်၍ သို့မဟုတ် အောက်ပါ အဆက်အသွယ်ကို နှိပ်၍ စကားစတင်ပြောပါ
+          Username ရိုက်ထည့်၍ စကားစတင်ပြောပါ
         </div>
       </div>
 
-      <!-- Auto-expanding Textarea & Send Button -->
+      <!-- Updated Auto-expanding Textarea & Send Button -->
       <div class="input-area">
         <div class="input-wrapper">
           <textarea id="msgInput" placeholder="စာရိုက်ပါ..." rows="1" oninput="autoResize(this)"></textarea>
+
           <button class="clear-btn" id="clearBtn" onclick="clearInput()">✖</button>
         </div>
         <button class="send-btn" onclick="sendTextMessage()">➤</button>
@@ -212,18 +212,6 @@
       ]
     };
 
-    function requestNotificationPermission() {
-      if ("Notification" in window) {
-        Notification.requestPermission();
-      }
-    }
-
-    function sendNotification(title, body) {
-      if ("Notification" in window && Notification.permission === "granted") {
-        new Notification(title, { body: body });
-      }
-    }
-
     window.initAudioContext = () => {
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -240,6 +228,7 @@
       element.classList.add('active');
     };
 
+    // Text Box Resize and Clear Logic
     window.autoResize = (textarea) => {
       textarea.style.height = '42px';
       if (textarea.scrollHeight > 42) {
@@ -260,7 +249,6 @@
     function playRingtone() {
       try {
         window.initAudioContext();
-        stopRingtone();
         ringtoneInterval = setInterval(() => {
           if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
           if (audioCtx) {
@@ -297,7 +285,6 @@
 
     window.handleRegister = async () => {
       window.initAudioContext();
-      requestNotificationPermission();
       const name = document.getElementById("regName").value.trim();
       const username = document.getElementById("regUsername").value.trim().toLowerCase().replace("@","");
       const pass = document.getElementById("regPass").value.trim();
@@ -318,7 +305,6 @@
 
     window.handleLogin = async () => {
       window.initAudioContext();
-      requestNotificationPermission();
       const username = document.getElementById("loginUsername").value.trim().toLowerCase().replace("@","");
       if (!username) return alert("Username ရိုက်ထည့်ပါ!");
       
@@ -355,7 +341,6 @@
       targetUser = { userID: targetID, name: tUserDoc.data().name, username: uname };
       currentChatID = [currentUser.userID, targetID].sort().join("_");
       
-      document.getElementById("targetUsernameInput").value = uname;
       saveRecentContact(targetUser);
       loadMessages();
     };
@@ -373,42 +358,22 @@
       let contacts = JSON.parse(localStorage.getItem("recent_contacts") || "[]");
       const container = document.getElementById("recentContacts");
       container.innerHTML = '<span style="font-size: 12px; color: #888; align-self: center;">အဆက်အသွယ်များ: </span>';
-      
       contacts.forEach(c => {
         const chip = document.createElement("div");
-        const isActive = targetUser && targetUser.username === c.username;
-        chip.className = `contact-chip ${isActive ? 'active-target' : ''}`;
-        
-        chip.innerHTML = `
-          <span>@${c.username}</span>
-          <span class="contact-delete-btn" title="ဖျက်ရန်">×</span>
-        `;
-        
-        chip.onclick = (e) => {
-          if (e.target.classList.contains('contact-delete-btn')) {
-            e.stopPropagation();
-            removeRecentContact(c.username);
-            return;
-          }
+        chip.className = "contact-chip";
+        chip.innerText = `@${c.username}`;
+        chip.onclick = () => {
+          document.getElementById("targetUsernameInput").value = c.username;
           window.connectChat(c.username);
         };
-
         container.appendChild(chip);
       });
-    }
-
-    function removeRecentContact(username) {
-      let contacts = JSON.parse(localStorage.getItem("recent_contacts") || "[]");
-      contacts = contacts.filter(c => c.username !== username);
-      localStorage.setItem("recent_contacts", JSON.stringify(contacts));
-      loadRecentContacts();
     }
 
     function loadMessages() {
       if (unsubscribeChat) unsubscribeChat();
       const q = query(collection(db, "chats", currentChatID, "messages"), orderBy("timestamp", "asc"));
       
-      let isFirstLoad = true;
       unsubscribeChat = onSnapshot(q, (snapshot) => {
         const chatArea = document.getElementById("chatArea");
         chatArea.innerHTML = "";
@@ -421,22 +386,13 @@
           chatArea.appendChild(msgDiv);
         });
         chatArea.scrollTop = chatArea.scrollHeight;
-
-        if (!isFirstLoad && snapshot.docChanges().length > 0) {
-          snapshot.docChanges().forEach((change) => {
-            if (change.type === "added" && change.doc.data().senderID !== currentUser.userID) {
-              sendNotification(`IDChat - @${targetUser.username}`, change.doc.data().content);
-            }
-          });
-        }
-        isFirstLoad = false;
       });
     }
 
     window.sendTextMessage = async () => {
       const input = document.getElementById("msgInput");
       const text = input.value.trim();
-      if (!text || !currentChatID) return alert("သူငယ်ချင်း Username ကို နှိပ်၍ အရင် ချိတ်ဆက်ပါ!");
+      if (!text || !currentChatID) return alert("သူငယ်ချင်း Username အရင် ရိုက်ထည့်ပါ!");
       
       await addDoc(collection(db, "chats", currentChatID, "messages"), {
         senderID: currentUser.userID,
@@ -448,35 +404,21 @@
       window.clearInput();
     };
 
-    // --- Robust WebRTC Core ---
+    // --- WebRTC Video Call Core ---
     function createPeerConnection(targetID) {
-      if (peerConnection) {
-        peerConnection.close();
-        peerConnection = null;
-      }
-      
       peerConnection = new RTCPeerConnection(rtcConfig);
 
-      if (localStream) {
-        localStream.getTracks().forEach(track => {
-          peerConnection.addTrack(track, localStream);
-        });
-      }
+      localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+      });
 
       peerConnection.ontrack = (event) => {
-        const remoteVideo = document.getElementById("remoteVideo");
-        if (event.streams && event.streams[0]) {
-          remoteVideo.srcObject = event.streams[0];
-          remoteVideo.play().catch(e => console.log(e));
-        }
-        if (audioCtx && audioCtx.state === 'suspended') {
-          audioCtx.resume();
-        }
+        document.getElementById("remoteVideo").srcObject = event.streams[0];
       };
 
       peerConnection.onicecandidate = async (event) => {
-        if (event.candidate && targetID) {
-          await addDoc(collection(db, "calls", targetID, "candidates"), event.candidate.toJSON()).catch(() => {});
+        if (event.candidate) {
+          await addDoc(collection(db, "calls", targetID, "candidates"), event.candidate.toJSON());
         }
       };
     }
@@ -493,7 +435,6 @@
             document.getElementById("callStatusText").innerText = `${data.callerName} (@${data.callerUsername}) ထံမှ Video Call ဝင်လာပါသည်...`;
             document.getElementById("acceptCallBtn").style.display = "flex";
             
-            sendNotification("IDChat Video Call", `${data.callerName} (@${data.callerUsername}) ထံမှ Video Call ဝင်လာပါသည်...`);
             playRingtone();
           }
         } else {
@@ -506,56 +447,33 @@
 
     window.startCall = async () => {
       window.initAudioContext();
-      
-      // Target User Guard Validation
-      if (!targetUser || !targetUser.userID) {
-        alert("ခေါ်ဆိုလိုသော အဆက်အသွယ် (Contact) ကို အရင် နှိပ်ပါ သို့မဟုတ် Username ရိုက်ထည့်၍ ချိတ်ဆက်ပါ!");
-        resetCallState();
-        return;
-      }
+      if (!targetUser) return alert("ခေါ်ဆိုလိုသော သူငယ်ချင်း၏ Username ကို ရိုက်ထည့်၍ မက်ဆေ့ခ်ျ အရင် ချိတ်ဆက်ပါ!");
 
       activeCallTargetID = targetUser.userID;
 
       try {
-        if (localStream) {
-          localStream.getTracks().forEach(t => t.stop());
-        }
-        localStream = await navigator.mediaDevices.getUserMedia({ 
-          video: true, 
-          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
-        });
-        const localVid = document.getElementById("localVideo");
-        localVid.srcObject = localStream;
-        localVid.play().catch(() => {});
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        document.getElementById("localVideo").srcObject = localStream;
       } catch (err) {
-        console.error("Camera/Mic Error:", err);
-        alert("ကင်မရာ သို့မဟုတ် မိုက်ခရိုဖုန်း အသုံးပြုခွင့် ပိတ်ထားပါသည်။");
-        resetCallState();
-        return;
+        return alert("ကင်မရာ သို့မဟုတ် မိုက်ခရိုဖုန်း အသုံးပြုခွင့် ပိတ်ထားပါသည်။");
       }
 
       document.getElementById("videoCallOverlay").style.display = "flex";
-      document.getElementById("callStatusText").innerText = `@${targetUser.username} သို့ ဖုန်းခေါ်ဆိုနေသည်...`;
+      document.getElementById("callStatusText").innerText = "ဖုန်းခေါ်ဆိုနေသည်... ခေတ္တစောင့်ပါ";
       document.getElementById("acceptCallBtn").style.display = "none";
 
       playRingtone();
       createPeerConnection(targetUser.userID);
 
-      try {
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
 
-        await setDoc(doc(db, "calls", targetUser.userID), {
-          callerID: currentUser.userID,
-          callerName: currentUser.name,
-          callerUsername: currentUser.username,
-          offer: { type: offer.type, sdp: offer.sdp }
-        });
-      } catch (err) {
-        console.error("Offer Creation Error:", err);
-        resetCallState();
-        return;
-      }
+      await setDoc(doc(db, "calls", targetUser.userID), {
+        callerID: currentUser.userID,
+        callerName: currentUser.name,
+        callerUsername: currentUser.username,
+        offer: { type: offer.type, sdp: offer.sdp }
+      });
 
       onSnapshot(doc(db, "calls", targetUser.userID), async (snapshot) => {
         if (!snapshot.exists()) {
@@ -569,10 +487,6 @@
           const remoteDesc = new RTCSessionDescription(data.answer);
           await peerConnection.setRemoteDescription(remoteDesc);
           document.getElementById("callStatusText").innerText = "ဗီဒီယို ဖုန်းခေါ်ဆိုမှု စတင်ပါပြီ";
-          
-          if (audioCtx && audioCtx.state === 'suspended') {
-            audioCtx.resume();
-          }
         }
       });
 
@@ -581,7 +495,7 @@
         snapshot.docChanges().forEach(async (change) => {
           if (change.type === "added") {
             const candidate = new RTCIceCandidate(change.doc.data());
-            if (peerConnection && peerConnection.remoteDescription) {
+            if (peerConnection) {
               await peerConnection.addIceCandidate(candidate).catch(() => {});
             }
           }
@@ -596,39 +510,23 @@
       document.getElementById("callStatusText").innerText = "ချိတ်ဆက်နေသည်...";
 
       try {
-        if (localStream) {
-          localStream.getTracks().forEach(t => t.stop());
-        }
-        localStream = await navigator.mediaDevices.getUserMedia({ 
-          video: true, 
-          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
-        });
-        const localVid = document.getElementById("localVideo");
-        localVid.srcObject = localStream;
-        localVid.play().catch(() => {});
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        document.getElementById("localVideo").srcObject = localStream;
       } catch (err) {
-        console.error("Mic/Cam Accept Error:", err);
-        alert("ကင်မရာ သို့မဟုတ် မိုက်ခရိုဖုန်း ဖွင့်မရပါ။");
-        resetCallState();
-        return;
+        return alert("ကင်မရာ ဖွင့်မရပါ။");
       }
 
       const callerID = incomingCallData.callerID;
       createPeerConnection(callerID);
 
-      try {
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingCallData.offer));
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingCallData.offer));
 
-        await updateDoc(doc(db, "calls", currentUser.userID), {
-          answer: { type: answer.type, sdp: answer.sdp }
-        });
-      } catch (err) {
-        console.error("Answer Processing Error:", err);
-        resetCallState();
-        return;
-      }
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+
+      await updateDoc(doc(db, "calls", currentUser.userID), {
+        answer: { type: answer.type, sdp: answer.sdp }
+      });
 
       const candidatesCol = collection(db, "calls", callerID, "candidates");
       onSnapshot(candidatesCol, (snapshot) => {
@@ -643,10 +541,6 @@
       });
 
       document.getElementById("callStatusText").innerText = "ဗီဒီယို ဖုန်းခေါ်ဆိုမှု စတင်ပါပြီ";
-      
-      if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
     };
 
     window.endCall = async () => {
@@ -669,10 +563,8 @@
         peerConnection.close();
         peerConnection = null;
       }
-      const remoteVid = document.getElementById("remoteVideo");
-      const localVid = document.getElementById("localVideo");
-      if (remoteVid) remoteVid.srcObject = null;
-      if (localVid) localVid.srcObject = null;
+      document.getElementById("remoteVideo").srcObject = null;
+      document.getElementById("localVideo").srcObject = null;
       document.getElementById("videoCallOverlay").style.display = "none";
     }
   </script>
