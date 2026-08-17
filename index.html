@@ -355,21 +355,32 @@
     };
 
     window.handleLogin = async () => {
-      window.initAudioContext();
-      const username = document.getElementById("loginUsername").value.trim().toLowerCase().replace("@","");
-      if (!username) return alert("Username ရိုက်ထည့်ပါ!");
+  window.initAudioContext();
+  const username = document.getElementById("loginUsername").value.trim().toLowerCase().replace("@","");
+  if (!username) return alert("Username ရိုက်ထည့်ပါ!");
+  
+  try {
+    // doc(doc(...)) အမှားကို ပြင်ဆင်ထားပါသည်
+    const uSnap = await getDoc(doc(db, "usernames", username));
+    if (uSnap.exists()) {
+      const userID = uSnap.data().userID;
+      const userDoc = await getDoc(doc(db, "users", userID));
       
-      const uSnap = await getDoc(doc(doc(db, "usernames", username)));
-      if (uSnap.exists()) {
-        const userID = uSnap.data().userID;
-        const userDoc = await getDoc(doc(db, "users", userID));
+      if (userDoc.exists()) {
         loginSuccess(userID, userDoc.data().name, username);
       } else {
-        alert("ဤ Username ဖြင့် အကောင့်မရှိပါ!");
+        alert("အကောင့် အချက်အလက် ရှာမတွေ့ပါ။");
       }
-    };
-
-    function loginSuccess(userID, name, username) {
+    } else {
+      alert("ဤ Username ဖြင့် အကောင့်မရှိပါ။ အကောင့်အသစ် အရင်ဖွင့်ပါ။");
+    }
+  } catch (error) {
+    console.error("Login Error:", error);
+    alert("Login ဝင်ရာတွင် အမှားအယွင်း ရှိနေပါသည်။");
+  }
+};
+    
+  function loginSuccess(userID, name, username) {
       currentUser = { userID, name, username };
       document.getElementById("myUsernameDisplay").innerText = "@" + username;
       document.getElementById("userNameDisplay").innerText = name;
