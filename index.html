@@ -7,7 +7,7 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
     body { background-color: #f0f2f5; display: flex; justify-content: center; height: 100vh; }
-    .app-container { width: 100%; max-width: 480px; background: #fff; display: flex; flex-direction: column; height: 100vh; box-shadow: 0 0 15px rgba(0,0,0,0.1); position: relative; }
+    .app-container { width: 100%; max-width: 480px; background: #fff; display: flex; flex-direction: column; height: 100vh; box-shadow: 0 0 15px rgba(0,0,0,0.1); position: relative; overflow: hidden; }
     
     .header { background: #0084ff; color: white; padding: 12px 15px; text-align: center; font-size: 18px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
     .call-btn { background: #28a745; color: white; border: none; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer; }
@@ -36,7 +36,6 @@
 
     .chat-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #f4f6f8; }
     
-    /* Message Styling & Time Stamp */
     .message { max-width: 75%; padding: 8px 12px; border-radius: 15px; font-size: 14px; line-height: 1.4; word-break: break-word; white-space: pre-wrap; display: flex; flex-direction: column; }
     .message.sent { background: #0084ff; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
     .message.received { background: #ffffff; color: #333; align-self: flex-start; border-bottom-left-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
@@ -72,34 +71,40 @@
     .btn-end-call { background: #dc3545; }
     .btn-accept-call { background: #28a745; }
 
-    /* Top Banner Notification Style */
+    /* Improved Banner Notification Style */
     .top-notification {
       position: absolute;
-      top: -60px;
+      top: -70px;
       left: 10px;
       right: 10px;
-      background: #333;
+      background: #1e293b;
       color: white;
       padding: 10px 15px;
-      border-radius: 8px;
+      border-radius: 10px;
       font-size: 13px;
       z-index: 3000;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-      transition: top 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      transition: top 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       display: flex;
       justify-content: space-between;
       align-items: center;
       cursor: pointer;
     }
     .top-notification.show { top: 10px; }
+    .banner-content { display: flex; flex-direction: column; gap: 2px; overflow: hidden; max-width: 80%; }
+    .banner-title { font-weight: bold; color: #38bdf8; font-size: 12px; }
+    .banner-msg { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; color: #f1f5f9; }
   </style>
 </head>
 <body onclick="initAudioContext()" ontouchstart="initAudioContext()">
 
-  <!-- In-App Notification Banner -->
+  <!-- Improved Banner Notification -->
   <div class="top-notification" id="topBanner" onclick="clickBanner()">
-    <span id="bannerText">💬 စာအသစ်ဝင်လာသည်</span>
-    <small style="color: #4da6ff;">နှိပ်ပါ</small>
+    <div class="banner-content">
+      <span class="banner-title" id="bannerTitle">💬 မက်ဆေ့ခ်ျအသစ်</span>
+      <span class="banner-msg" id="bannerText">စာဝင်လာပါသည်</span>
+    </div>
+    <small style="background: #0284c7; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px;">နှိပ်ပါ</small>
   </div>
 
   <!-- Auth Modal -->
@@ -209,6 +214,7 @@
     let unsubscribeCallEndListener = null;
     let unreadMap = {};
     let bannerTargetUser = null;
+    let bannerTimeout = null;
     
     let localStream = null;
     let peerConnection = null;
@@ -283,26 +289,38 @@
       }
     }
 
-    // Time Format Helper (12-hour format)
     function formatTime(timestamp) {
       if (!timestamp) return "";
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
+    // Dynamic Time Auto-Dismiss Notification Banner
     function showBannerNotification(senderUsername, text) {
       bannerTargetUser = senderUsername;
       const banner = document.getElementById("topBanner");
-      document.getElementById("bannerText").innerText = `💬 @${senderUsername}: ${text}`;
+      document.getElementById("bannerTitle").innerText = `💬 @${senderUsername}`;
+      document.getElementById("bannerText").innerText = text;
+      
       banner.classList.add("show");
-      setTimeout(() => { banner.classList.remove("show"); }, 4000);
+
+      // Clear existing timeout to prevent permanent lock
+      if (bannerTimeout) clearTimeout(bannerTimeout);
+
+      // Display duration based on text length (Min: 3s, Max: 6s)
+      const displayDuration = Math.min(Math.max(text.length * 100, 3000), 6000);
+
+      bannerTimeout = setTimeout(() => {
+        banner.classList.remove("show");
+      }, displayDuration);
     }
 
     window.clickBanner = () => {
+      if (bannerTimeout) clearTimeout(bannerTimeout);
+      document.getElementById("topBanner").classList.remove("show");
       if (bannerTargetUser) {
         document.getElementById("targetUsernameInput").value = bannerTargetUser;
         window.connectChat(bannerTargetUser);
-        document.getElementById("topBanner").classList.remove("show");
       }
     };
 
@@ -341,7 +359,7 @@
       const username = document.getElementById("loginUsername").value.trim().toLowerCase().replace("@","");
       if (!username) return alert("Username ရိုက်ထည့်ပါ!");
       
-      const uSnap = await getDoc(doc(db, "usernames", username));
+      const uSnap = await getDoc(doc(doc(db, "usernames", username)));
       if (uSnap.exists()) {
         const userID = uSnap.data().userID;
         const userDoc = await getDoc(doc(db, "users", userID));
