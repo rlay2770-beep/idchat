@@ -71,7 +71,6 @@
     .btn-end-call { background: #dc3545; }
     .btn-accept-call { background: #28a745; }
 
-    /* Improved Banner Notification Style */
     .top-notification {
       position: absolute;
       top: -70px;
@@ -98,7 +97,7 @@
 </head>
 <body onclick="initAudioContext()" ontouchstart="initAudioContext()">
 
-  <!-- Improved Banner Notification -->
+  <!-- Banner Notification -->
   <div class="top-notification" id="topBanner" onclick="clickBanner()">
     <div class="banner-content">
       <span class="banner-title" id="bannerTitle">💬 မက်ဆေ့ခ်ျအသစ်</span>
@@ -188,7 +187,7 @@
 
   </div>
 
-  <!-- Firebase SDK -->
+  <!-- Firebase SDK & App Engine -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -229,6 +228,7 @@
       ]
     };
 
+    // Global Audio Context Initialization
     window.initAudioContext = () => {
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -238,6 +238,7 @@
       }
     };
 
+    // UI Tab Switcher
     window.switchTab = (tabId, element) => {
       document.querySelectorAll('.content-section').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
@@ -245,6 +246,7 @@
       element.classList.add('active');
     };
 
+    // Input Auto Resize
     window.autoResize = (textarea) => {
       textarea.style.height = '42px';
       if (textarea.scrollHeight > 42) {
@@ -262,6 +264,7 @@
       input.focus();
     };
 
+    // Audio Ringtone Logic
     function playRingtone() {
       try {
         window.initAudioContext();
@@ -295,7 +298,7 @@
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
-    // Dynamic Time Auto-Dismiss Notification Banner
+    // Banner Notification Controller
     function showBannerNotification(senderUsername, text) {
       bannerTargetUser = senderUsername;
       const banner = document.getElementById("topBanner");
@@ -304,10 +307,7 @@
       
       banner.classList.add("show");
 
-      // Clear existing timeout to prevent permanent lock
       if (bannerTimeout) clearTimeout(bannerTimeout);
-
-      // Display duration based on text length (Min: 3s, Max: 6s)
       const displayDuration = Math.min(Math.max(text.length * 100, 3000), 6000);
 
       bannerTimeout = setTimeout(() => {
@@ -334,6 +334,7 @@
       return newID;
     }
 
+    // User Registration
     window.handleRegister = async () => {
       window.initAudioContext();
       const name = document.getElementById("regName").value.trim();
@@ -354,33 +355,33 @@
       loginSuccess(userID, name, username);
     };
 
+    // User Login Engine
     window.handleLogin = async () => {
-  window.initAudioContext();
-  const username = document.getElementById("loginUsername").value.trim().toLowerCase().replace("@","");
-  if (!username) return alert("Username ရိုက်ထည့်ပါ!");
-  
-  try {
-    // doc(doc(...)) အမှားကို ပြင်ဆင်ထားပါသည်
-    const uSnap = await getDoc(doc(db, "usernames", username));
-    if (uSnap.exists()) {
-      const userID = uSnap.data().userID;
-      const userDoc = await getDoc(doc(db, "users", userID));
+      window.initAudioContext();
+      const username = document.getElementById("loginUsername").value.trim().toLowerCase().replace("@","");
+      if (!username) return alert("Username ရိုက်ထည့်ပါ!");
       
-      if (userDoc.exists()) {
-        loginSuccess(userID, userDoc.data().name, username);
-      } else {
-        alert("အကောင့် အချက်အလက် ရှာမတွေ့ပါ။");
+      try {
+        const uSnap = await getDoc(doc(db, "usernames", username));
+        if (uSnap.exists()) {
+          const userID = uSnap.data().userID;
+          const userDoc = await getDoc(doc(db, "users", userID));
+          
+          if (userDoc.exists()) {
+            loginSuccess(userID, userDoc.data().name, username);
+          } else {
+            alert("အကောင့် အချက်အလက် ရှာမတွေ့ပါ။");
+          }
+        } else {
+          alert("ဤ Username ဖြင့် အကောင့်မရှိပါ။ အကောင့်အသစ် အရင်ဖွင့်ပါ။");
+        }
+      } catch (error) {
+        console.error("Login Error:", error);
+        alert("Login ဝင်ရာတွင် အမှားအယွင်း ရှိနေပါသည်။");
       }
-    } else {
-      alert("ဤ Username ဖြင့် အကောင့်မရှိပါ။ အကောင့်အသစ် အရင်ဖွင့်ပါ။");
-    }
-  } catch (error) {
-    console.error("Login Error:", error);
-    alert("Login ဝင်ရာတွင် အမှားအယွင်း ရှိနေပါသည်။");
-  }
-};
-    
-  function loginSuccess(userID, name, username) {
+    };
+
+    function loginSuccess(userID, name, username) {
       currentUser = { userID, name, username };
       document.getElementById("myUsernameDisplay").innerText = "@" + username;
       document.getElementById("userNameDisplay").innerText = name;
@@ -391,6 +392,7 @@
       listenForBackgroundMessages();
     }
 
+    // Connect & Switch Active Chat
     window.connectChat = async (targetUsername = null) => {
       const uname = targetUsername || document.getElementById("targetUsernameInput").value.trim().toLowerCase().replace("@","");
       if (!uname || (currentUser && uname === currentUser.username)) return alert("မှန်ကန်သော Username ရိုက်ထည့်ပါ!");
@@ -486,6 +488,7 @@
       });
     }
 
+    // Send Text Message
     window.sendTextMessage = async () => {
       const input = document.getElementById("msgInput");
       const text = input.value.trim();
@@ -501,17 +504,21 @@
       window.clearInput();
     };
 
-    async function logCallToChat() {
-      if (currentChatID && currentUser) {
-        await addDoc(collection(db, "chats", currentChatID, "messages"), {
+    // Specific Call Logger to Specific User Chat
+    async function logCallToChat(targetID, callStatusText) {
+      if (currentUser && targetID) {
+        const targetChatID = [currentUser.userID, targetID].sort().join("_");
+        
+        await addDoc(collection(db, "chats", targetChatID, "messages"), {
           senderID: currentUser.userID,
           type: "call_log",
-          content: "Video Call ပြောဆိုမှု ပြီးဆုံးခဲ့သည်",
+          content: callStatusText,
           timestamp: serverTimestamp()
-        }).catch(() => {});
+        }).catch((err) => console.error("Call Log Error:", err));
       }
     }
 
+    // WebRTC Peer Connection Logic
     function createPeerConnection(targetID) {
       try {
         peerConnection = new RTCPeerConnection(rtcConfig);
@@ -566,6 +573,7 @@
       });
     }
 
+    // Start Video Call Engine
     window.startCall = async () => {
       window.initAudioContext();
       if (!targetUser) return alert("ခေါ်ဆိုလိုသော သူငယ်ချင်း၏ Username ကို ရိုက်ထည့်၍ မက်ဆေ့ခ်ျ အရင် ချိတ်ဆက်ပါ!");
@@ -626,6 +634,7 @@
       });
     };
 
+    // Accept Incoming Call Engine
     window.acceptIncomingCall = async () => {
       window.initAudioContext();
       stopRingtone();
@@ -666,14 +675,20 @@
       document.getElementById("callStatusText").innerText = "ဗီဒီယို ဖုန်းခေါ်ဆိုမှု စတင်ပါပြီ";
     };
 
+    // End / Reject Call Engine
     window.endCall = async () => {
       try {
-        await logCallToChat();
+        if (activeCallTargetID) {
+          const statusText = peerConnection && peerConnection.remoteDescription 
+            ? "Video Call ပြောဆိုမှု ပြီးဆုံးခဲ့သည်" 
+            : "Video Call ခေါ်ဆိုမှုကို ပယ်ဖျက်လိုက်သည်";
+            
+          await logCallToChat(activeCallTargetID, statusText);
+          await deleteDoc(doc(db, "calls", activeCallTargetID)).catch(() => {});
+        }
+        
         if (currentUser) {
           await deleteDoc(doc(db, "calls", currentUser.userID)).catch(() => {});
-        }
-        if (activeCallTargetID) {
-          await deleteDoc(doc(db, "calls", activeCallTargetID)).catch(() => {});
         }
       } catch (err) {
         console.error("End call error: ", err);
@@ -682,6 +697,7 @@
       }
     };
 
+    // Reset All Call States and Media Streams
     function resetCallState() {
       stopRingtone();
       if (unsubscribeCallEndListener) {
