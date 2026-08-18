@@ -208,14 +208,14 @@
 
       <div class="input-area">
         <div class="input-wrapper">
-          <textarea id="msgInput" placeholder="စာရိုက်ပါ..." rows="1" oninput="autoResize(this)"></textarea>
+          <textarea id="msgInput" placeholder="စာရိုက်ပါ..." rows="1" oninput="autoResize(this)" onkeydown="handleKeyDown(event)"></textarea>
           <button class="clear-btn" id="clearBtn" onclick="clearInput()">✖</button>
         </div>
         <button class="send-btn" onclick="sendTextMessage()">➤</button>
       </div>
     </div>
 
-    <!-- Whiteboard Tab Section (AI Tab နေရာတွင် အစားထိုးထားသည်) -->
+    <!-- Whiteboard Tab Section -->
     <div id="boardTab" class="content-section">
       <div class="board-container">
         <div class="board-toolbar">
@@ -237,10 +237,10 @@
 
   </div>
 
-  <!-- Firebase SDK & App Engine -->
+    <!-- Firebase SDK & App Engine -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, deleteDoc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyD81JR9IoFkwGbkq0UWQ4aqfgwwpvLg668",
@@ -271,7 +271,7 @@
     let ringtoneInterval = null;
     let audioCtx = null;
 
-    let currentCallType = "video"; // "video" or "audio"
+    let currentCallType = "video"; 
     let isMicMuted = false;
     let isSpeakerOn = false;
 
@@ -281,6 +281,19 @@
         { urls: 'stun:stun1.l.google.com:19302' }
       ]
     };
+
+    // ===== Auto-Login Check on Page Load =====
+    window.addEventListener("DOMContentLoaded", () => {
+      const savedUser = localStorage.getItem("idchat_active_user");
+      if (savedUser) {
+        try {
+          const userObj = JSON.parse(savedUser);
+          loginSuccess(userObj.userID, userObj.name, userObj.username, false);
+        } catch(e) {
+          console.error("Auto Login Error", e);
+        }
+      }
+    });
 
     window.initAudioContext = () => {
       if (!audioCtx) {
@@ -308,6 +321,13 @@
       }
       const clearBtn = document.getElementById('clearBtn');
       clearBtn.style.display = textarea.value.length > 0 ? 'block' : 'none';
+    };
+
+    window.handleKeyDown = (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        window.sendTextMessage();
+      }
     };
 
     window.clearInput = () => {
@@ -504,9 +524,27 @@
       }
     };
 
-    function loginSuccess(userID, name, username) {
+    function loginSuccess(userID, name, username, saveToStorage = true) {
       currentUser = { userID, name, username };
+      
+      // Save session to local storage for Auto-Login
+      if (saveToStorage) {
+        localStorage.setItem("idchat_active_user", JSON.stringify(currentUser));
+      }
+
       document.getElementById("myUsernameDisplay").innerText = "@" + username;
+      
+      // Logout Button UI
+      const userCard = document.getElementById("userNameDisplay").parentElement;
+      if (!document.getElementById("logoutBtn")) {
+        const logoutBtn = document.createElement("span");
+        logoutBtn.id = "logoutBtn";
+        logoutBtn.style.cssText = "color: #ef4444; cursor: pointer; margin-left: 8px; font-size: 11px; text-decoration: underline;";
+        logoutBtn.innerText = "[ထွက်မည်]";
+        logoutBtn.onclick = window.handleLogout;
+        userCard.appendChild(logoutBtn);
+      }
+      
       document.getElementById("userNameDisplay").innerText = name;
       document.getElementById("authModal").style.display = "none";
       
@@ -515,7 +553,14 @@
       listenForBackgroundMessages();
     }
 
-   window.connectChat = async (targetUsername = null) => {
+    window.handleLogout = () => {
+      if (confirm("အကောင့်ထဲမှ ထွက်ရန် သေချာပါသလား?")) {
+        localStorage.removeItem("idchat_active_user");
+        location.reload();
+      }
+    };
+
+    window.connectChat = async (targetUsername = null) => {
       const uname = targetUsername || document.getElementById("targetUsernameInput").value.trim().toLowerCase().replace("@","");
       if (!uname || (currentUser && uname === currentUser.username)) return alert("မှန်ကန်သော Username ရိုက်ထည့်ပါ!");
 
@@ -658,7 +703,6 @@
       }
     }
 
-    // Mic & Speaker Toggle Controllers
     window.toggleMic = () => {
       if (localStream) {
         const audioTrack = localStream.getAudioTracks()[0];
@@ -685,7 +729,6 @@
           
           if (audioOutputs.length > 1) {
             isSpeakerOn = !isSpeakerOn;
-            // 0: Earpiece/Default, 1: Speakerphone
             const targetDevice = isSpeakerOn ? audioOutputs[1].deviceId : audioOutputs[0].deviceId;
             await element.setSinkId(targetDevice);
             btn.classList.toggle("active", isSpeakerOn);
@@ -724,8 +767,8 @@
         };
 
         peerConnection.onicecandidate = (event) => {
-          if (event.candidate) {
-            const candidateCol = collection(db, "calls", targetID, "candidates");
+          if (event.candidate && activeCallTargetID) {
+            const candidateCol = collection(db, "calls", activeCallTargetID, "candidates");
             addDoc(candidateCol, event.candidate.toJSON()).catch(() => {});
           }
         };
@@ -734,9 +777,9 @@
       }
     }
 
-    function listenForCallEnd(targetID) {
+    function listenForCallEnd(callDocID) {
       if (unsubscribeCallEndListener) unsubscribeCallEndListener();
-      const callDocRef = doc(db, "calls", targetID);
+      const callDocRef = doc(db, "calls", callDocID);
       unsubscribeCallEndListener = onSnapshot(callDocRef, (snapshot) => {
         if (!snapshot.exists()) {
           resetCallState();
@@ -877,6 +920,16 @@
       document.getElementById("callStatusText").innerText = `${currentCallType === 'audio' ? 'Audio' : 'Video'} Call စတင်ပါပြီ`;
     };
 
+    async function clearCandidates(callDocID) {
+      try {
+        const candidatesCol = collection(db, "calls", callDocID, "candidates");
+        const snapshot = await getDocs(candidatesCol);
+        snapshot.forEach(async (docSnapshot) => {
+          await deleteDoc(docSnapshot.ref);
+        });
+      } catch(e) { console.log(e); }
+    }
+
     window.endCall = async () => {
       try {
         if (activeCallTargetID) {
@@ -886,10 +939,12 @@
             : `${callTypeName} ခေါ်ဆိုမှုကို ပယ်ဖျက်လိုက်သည်`;
             
           await logCallToChat(activeCallTargetID, statusText, currentCallType);
+          await clearCandidates(activeCallTargetID);
           await deleteDoc(doc(db, "calls", activeCallTargetID)).catch(() => {});
         }
         
         if (currentUser) {
+          await clearCandidates(currentUser.userID);
           await deleteDoc(doc(db, "calls", currentUser.userID)).catch(() => {});
         }
       } catch (err) {
