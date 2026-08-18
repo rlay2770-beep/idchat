@@ -700,6 +700,47 @@
       }
     }
 
+        /* Flash Alert Helper Functions (မီးဖွင့်/ပိတ် သီးသန့် စနစ်) */
+    let flashInterval = null;
+
+    function startFlashAlert() {
+      if (flashInterval) return;
+      let isTorchOn = false;
+
+      flashInterval = setInterval(() => {
+        isTorchOn = !isTorchOn;
+        try {
+          // Cordova / Capacitor Flashlight Plugin ပါဝင်ပါက
+          if (window.plugins && window.plugins.flashlight) {
+            if (isTorchOn) window.plugins.flashlight.switchOn();
+            else window.plugins.flashlight.switchOff();
+          } 
+          // Custom Torch Native Bridge ပါဝင်ပါက
+          else if (window.Torch) {
+            window.Torch.switchState(isTorchOn);
+          }
+        } catch (e) {
+          console.log("Flashlight Error: ", e);
+        }
+      }, 500); // ၀.၅ စက္ကန့်တစ်ခါ မီးဖွင့်/ပိတ် ပုံမှန်လုပ်ပေးမည်
+    }
+
+    function stopFlashAlert() {
+      if (flashInterval) {
+        clearInterval(flashInterval);
+        flashInterval = null;
+      }
+      try {
+        if (window.plugins && window.plugins.flashlight) {
+          window.plugins.flashlight.switchOff();
+        } else if (window.Torch) {
+          window.Torch.switchState(false);
+        }
+      } catch (e) {
+        console.log("Flashlight Stop Error: ", e);
+      }
+    }
+
     /* Fixed Mic Toggle with Safe Audio Context Recovery */
     window.toggleMic = () => {
       window.initAudioContext();
@@ -804,7 +845,10 @@
             const callLabel = currentCallType === "audio" ? "Audio Call" : "Video Call";
             document.getElementById("callStatusText").innerText = `${data.callerName} (@${data.callerUsername}) ထံမှ ${callLabel} ဝင်လာပါသည်...`;
             document.getElementById("acceptCallBtn").style.display = "flex";
+            
             playRingtone();
+            startFlashAlert(); // 👈 ဖုန်းဝင်လာသည်နှင့် Flash မီး စတင်လင်းမည်
+            
             listenForCallEnd(currentUser.userID);
           }
         }
@@ -831,7 +875,7 @@
 
       setupCallUI(type, targetUser.name);
       document.getElementById("videoCallOverlay").style.display = "flex";
-      document.getElementById("callStatusText").innerText = `${type === 'audio' ? 'Audio' : 'Video'} Call ขေါ်ဆိုနေသည်... ခေတ္တစောင့်ပါ`;
+      document.getElementById("callStatusText").innerText = `${type === 'audio' ? 'Audio' : 'Video'} Call ခေါ်ဆိုနေသည်... ခေတ္တစောင့်ပါ`;
       document.getElementById("acceptCallBtn").style.display = "none";
 
       playRingtone();
@@ -881,6 +925,8 @@
     window.acceptIncomingCall = async () => {
       window.initAudioContext();
       stopRingtone();
+      stopFlashAlert(); // 👈 ဖုန်းကိုင်လိုက်ပါက Flash မီး ပိတ်မည်
+      
       document.getElementById("acceptCallBtn").style.display = "none";
       document.getElementById("callStatusText").innerText = "ချိတ်ဆက်နေသည်...";
 
@@ -958,6 +1004,8 @@
 
     function resetCallState() {
       stopRingtone();
+      stopFlashAlert(); // 👈 ဖုန်းချလိုက်ပါက/လိုင်းကျပါက Flash မီး ပိတ်မည်
+      
       if (unsubscribeCallEndListener) {
         unsubscribeCallEndListener();
         unsubscribeCallEndListener = null;
@@ -990,3 +1038,4 @@
   </script>
 </body>
 </html>
+  
