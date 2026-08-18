@@ -112,7 +112,6 @@
     .color-btn.active { border-color: #0084ff; transform: scale(1.15); }
     .board-actions { display: flex; gap: 6px; }
     .board-btn { padding: 6px 12px; font-size: 12px; font-weight: bold; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; }
-    .board-btn.primary { background: #0084ff; color: white; border: none; }
     .canvas-wrapper { flex: 1; position: relative; background: #ffffff; width: 100%; height: 100%; touch-action: none; }
     #drawCanvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
   </style>
@@ -237,7 +236,7 @@
 
   </div>
 
-    <!-- Firebase SDK & App Engine -->
+  <!-- Firebase SDK & App Engine -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, deleteDoc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -282,7 +281,7 @@
       ]
     };
 
-    // ===== Auto-Login Check on Page Load =====
+    // Auto-Login Check on Page Load
     window.addEventListener("DOMContentLoaded", () => {
       const savedUser = localStorage.getItem("idchat_active_user");
       if (savedUser) {
@@ -338,7 +337,7 @@
       input.focus();
     };
 
-    /* --- Interactive Canvas Whiteboard Logic --- */
+    /* Interactive Canvas Whiteboard Logic */
     let canvas, ctx, isDrawing = false, currentColor = '#000000';
 
     function initCanvas() {
@@ -410,7 +409,7 @@
       isDrawing = false;
     }
 
-    /* --- Audio & Ringtone Handling --- */
+    /* Audio & Ringtone Handling */
     function playRingtone() {
       try {
         window.initAudioContext();
@@ -527,14 +526,12 @@
     function loginSuccess(userID, name, username, saveToStorage = true) {
       currentUser = { userID, name, username };
       
-      // Save session to local storage for Auto-Login
       if (saveToStorage) {
         localStorage.setItem("idchat_active_user", JSON.stringify(currentUser));
       }
 
       document.getElementById("myUsernameDisplay").innerText = "@" + username;
       
-      // Logout Button UI
       const userCard = document.getElementById("userNameDisplay").parentElement;
       if (!document.getElementById("logoutBtn")) {
         const logoutBtn = document.createElement("span");
@@ -695,7 +692,7 @@
         remoteVideo.style.display = "none";
         audioUI.style.display = "flex";
         document.getElementById("avatarText").innerText = callerName ? callerName.charAt(0).toUpperCase() : "📞";
-        document.getElementById("audioCallerName").innerText = callerName || "အသံဖြင့် စကားပြောနေသည်";
+        document.getElementById("audioCallerName").innerText = callerName || "အသံဖြင့် ဖုန်းပြောဆိုနေသည်";
       } else {
         localVideo.style.display = "block";
         remoteVideo.style.display = "block";
@@ -703,7 +700,9 @@
       }
     }
 
+    /* Fixed Mic Toggle with Safe Audio Context Recovery */
     window.toggleMic = () => {
+      window.initAudioContext();
       if (localStream) {
         const audioTrack = localStream.getAudioTracks()[0];
         if (audioTrack) {
@@ -716,14 +715,16 @@
       }
     };
 
+    /* Safe Speaker Output Switching Logic */
     window.toggleSpeaker = async () => {
+      window.initAudioContext();
       const remoteAudio = document.getElementById("remoteAudio");
       const remoteVideo = document.getElementById("remoteVideo");
       const element = currentCallType === "audio" ? remoteAudio : remoteVideo;
       const btn = document.getElementById("speakerBtn");
 
       try {
-        if (typeof element.setSinkId !== 'undefined') {
+        if (element && typeof element.setSinkId === 'function') {
           const devices = await navigator.mediaDevices.enumerateDevices();
           const audioOutputs = devices.filter(device => device.kind === 'audiooutput');
           
@@ -737,7 +738,7 @@
           }
         } else {
           btn.classList.toggle("active");
-          alert("သင့် Browser/Phone က စပီကာ တိုက်ရိုက် ပြောင်းလဲခြင်းကို Hardware မပံ့ပိုးပါ။");
+          alert("သင့် Browser / Phone Hardware မှ Audio Output လမ်းကြောင်းပြောင်းခြင်းကို တိုက်ရိုက် မထောက်ပံ့ပါ။");
         }
       } catch (e) {
         console.error("Speaker Switch Error:", e);
@@ -753,6 +754,7 @@
         }
 
         peerConnection.ontrack = (event) => {
+          window.initAudioContext();
           if (currentCallType === "audio") {
             const remoteAudio = document.getElementById("remoteAudio");
             if (remoteAudio && event.streams[0]) {
@@ -829,7 +831,7 @@
 
       setupCallUI(type, targetUser.name);
       document.getElementById("videoCallOverlay").style.display = "flex";
-      document.getElementById("callStatusText").innerText = `${type === 'audio' ? 'Audio' : 'Video'} Call ခေါ်ဆိုနေသည်... ခေတ္တစောင့်ပါ`;
+      document.getElementById("callStatusText").innerText = `${type === 'audio' ? 'Audio' : 'Video'} Call ขေါ်ဆိုနေသည်... ခေတ္တစောင့်ပါ`;
       document.getElementById("acceptCallBtn").style.display = "none";
 
       playRingtone();
