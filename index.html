@@ -62,8 +62,6 @@
     .clear-btn { position: absolute; right: 12px; background: transparent; border: none; color: #aaa; font-size: 16px; cursor: pointer; display: none; }
     .input-area button.send-btn { background: #0084ff; color: white; border: none; width: 42px; height: 42px; border-radius: 50%; cursor: pointer; font-size: 16px; flex-shrink: 0; margin-bottom: 1px; }
 
-    .ai-frame { width: 100%; height: 100%; border: none; }
-
     /* Video & Audio Call UI */
     .video-call-overlay { display: none; position: fixed; inset: 0; background: #111; z-index: 2000; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px; }
     .video-container { width: 100%; height: 70%; position: relative; background: #222; border-radius: 15px; overflow: hidden; display: flex; justify-content: center; align-items: center; }
@@ -105,6 +103,18 @@
     .banner-content { display: flex; flex-direction: column; gap: 2px; overflow: hidden; max-width: 80%; }
     .banner-title { font-weight: bold; color: #38bdf8; font-size: 12px; }
     .banner-msg { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; color: #f1f5f9; }
+
+    /* Interactive Whiteboard Styles */
+    .board-container { flex: 1; display: flex; flex-direction: column; background: #f8fafc; height: 100%; position: relative; }
+    .board-toolbar { display: flex; gap: 8px; padding: 10px; background: #fff; border-bottom: 1px solid #e2e8f0; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+    .color-picker-box { display: flex; gap: 6px; align-items: center; }
+    .color-btn { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #ddd; cursor: pointer; }
+    .color-btn.active { border-color: #0084ff; transform: scale(1.15); }
+    .board-actions { display: flex; gap: 6px; }
+    .board-btn { padding: 6px 12px; font-size: 12px; font-weight: bold; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; }
+    .board-btn.primary { background: #0084ff; color: white; border: none; }
+    .canvas-wrapper { flex: 1; position: relative; background: #ffffff; width: 100%; height: 100%; touch-action: none; }
+    #drawCanvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
   </style>
 </head>
 <body onclick="initAudioContext()" ontouchstart="initAudioContext()">
@@ -175,7 +185,7 @@
     <!-- Navigation Tabs -->
     <div class="nav-tabs">
       <button class="nav-tab active" onclick="switchTab('chatTab', this)">💬 Chat & Call</button>
-      <button class="nav-tab" onclick="switchTab('aiTab', this)">🤖 သင်ကြားရေး AI</button>
+      <button class="nav-tab" onclick="switchTab('boardTab', this)">🎨 Whiteboard</button>
     </div>
 
     <!-- Chat Tab Section -->
@@ -205,9 +215,24 @@
       </div>
     </div>
 
-    <!-- AI Learning Tab Section -->
-    <div id="aiTab" class="content-section">
-      <iframe src="https://effervescent-lolly-f72885.netlify.app/" class="ai-frame" allow="autoplay"></iframe>
+    <!-- Whiteboard Tab Section (AI Tab နေရာတွင် အစားထိုးထားသည်) -->
+    <div id="boardTab" class="content-section">
+      <div class="board-container">
+        <div class="board-toolbar">
+          <div class="color-picker-box">
+            <div class="color-btn active" style="background: #000000;" onclick="setPenColor('#000000', this)"></div>
+            <div class="color-btn" style="background: #ef4444;" onclick="setPenColor('#ef4444', this)"></div>
+            <div class="color-btn" style="background: #0084ff;" onclick="setPenColor('#0084ff', this)"></div>
+            <div class="color-btn" style="background: #22c55e;" onclick="setPenColor('#22c55e', this)"></div>
+          </div>
+          <div class="board-actions">
+            <button class="board-btn" onclick="clearBoard()">🗑️ ဖျက်မည်</button>
+          </div>
+        </div>
+        <div class="canvas-wrapper" id="canvasWrapper">
+          <canvas id="drawCanvas"></canvas>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -271,6 +296,9 @@
       document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
       document.getElementById(tabId).classList.add('active');
       element.classList.add('active');
+      if(tabId === 'boardTab') {
+        initCanvas();
+      }
     };
 
     window.autoResize = (textarea) => {
@@ -290,6 +318,79 @@
       input.focus();
     };
 
+    /* --- Interactive Canvas Whiteboard Logic --- */
+    let canvas, ctx, isDrawing = false, currentColor = '#000000';
+
+    function initCanvas() {
+      canvas = document.getElementById('drawCanvas');
+      ctx = canvas.getContext('2d');
+      const wrapper = document.getElementById('canvasWrapper');
+      
+      canvas.width = wrapper.clientWidth;
+      canvas.height = wrapper.clientHeight;
+      
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = currentColor;
+
+      canvas.addEventListener('mousedown', startDrawing);
+      canvas.addEventListener('mousemove', draw);
+      canvas.addEventListener('mouseup', stopDrawing);
+      canvas.addEventListener('mouseleave', stopDrawing);
+
+      canvas.addEventListener('touchstart', startDrawingTouch, { passive: false });
+      canvas.addEventListener('touchmove', drawTouch, { passive: false });
+      canvas.addEventListener('touchend', stopDrawing);
+    }
+
+    window.setPenColor = (color, element) => {
+      currentColor = color;
+      if(ctx) ctx.strokeStyle = currentColor;
+      document.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('active'));
+      element.classList.add('active');
+    };
+
+    window.clearBoard = () => {
+      if(ctx && canvas) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    };
+
+    function startDrawing(e) {
+      isDrawing = true;
+      ctx.beginPath();
+      ctx.moveTo(e.offsetX, e.offsetY);
+    }
+
+    function draw(e) {
+      if (!isDrawing) return;
+      ctx.lineTo(e.offsetX, e.offsetY);
+      ctx.stroke();
+    }
+
+    function startDrawingTouch(e) {
+      e.preventDefault();
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      isDrawing = true;
+      ctx.beginPath();
+      ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
+    }
+
+    function drawTouch(e) {
+      if (!isDrawing) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
+      ctx.stroke();
+    }
+
+    function stopDrawing() {
+      isDrawing = false;
+    }
+
+    /* --- Audio & Ringtone Handling --- */
     function playRingtone() {
       try {
         window.initAudioContext();
