@@ -260,6 +260,7 @@
     let unsubscribeChat = null;
     let activeCallTargetID = null;
     let unsubscribeCallEndListener = null;
+    let bgListeners = [];
     let unreadMap = {};
     let bannerTargetUser = null;
     let bannerTimeout = null;
@@ -281,7 +282,6 @@
       ]
     };
 
-    // Auto-Login Check on Page Load
     window.addEventListener("DOMContentLoaded", () => {
       const savedUser = localStorage.getItem("idchat_active_user");
       if (savedUser) {
@@ -309,7 +309,7 @@
       document.getElementById(tabId).classList.add('active');
       element.classList.add('active');
       if(tabId === 'boardTab') {
-        initCanvas();
+        setTimeout(initCanvas, 50);
       }
     };
 
@@ -342,24 +342,25 @@
 
     function initCanvas() {
       canvas = document.getElementById('drawCanvas');
+      if (!canvas) return;
       ctx = canvas.getContext('2d');
       const wrapper = document.getElementById('canvasWrapper');
       
-      canvas.width = wrapper.clientWidth;
-      canvas.height = wrapper.clientHeight;
+      canvas.width = wrapper.clientWidth || 300;
+      canvas.height = wrapper.clientHeight || 400;
       
       ctx.lineWidth = 3;
       ctx.lineCap = 'round';
       ctx.strokeStyle = currentColor;
 
-      canvas.addEventListener('mousedown', startDrawing);
-      canvas.addEventListener('mousemove', draw);
-      canvas.addEventListener('mouseup', stopDrawing);
-      canvas.addEventListener('mouseleave', stopDrawing);
+      canvas.onmousedown = startDrawing;
+      canvas.onmousemove = draw;
+      canvas.onmouseup = stopDrawing;
+      canvas.onmouseleave = stopDrawing;
 
-      canvas.addEventListener('touchstart', startDrawingTouch, { passive: false });
-      canvas.addEventListener('touchmove', drawTouch, { passive: false });
-      canvas.addEventListener('touchend', stopDrawing);
+      canvas.ontouchstart = startDrawingTouch;
+      canvas.ontouchmove = drawTouch;
+      canvas.ontouchend = stopDrawing;
     }
 
     window.setPenColor = (color, element) => {
@@ -388,21 +389,23 @@
     }
 
     function startDrawingTouch(e) {
-      e.preventDefault();
-      const touch = e.touches[0];
-      const rect = canvas.getBoundingClientRect();
-      isDrawing = true;
-      ctx.beginPath();
-      ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
+      if (e.touches.length > 0) {
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        isDrawing = true;
+        ctx.beginPath();
+        ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
+      }
     }
 
     function drawTouch(e) {
       if (!isDrawing) return;
-      e.preventDefault();
-      const touch = e.touches[0];
-      const rect = canvas.getBoundingClientRect();
-      ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
-      ctx.stroke();
+      if (e.touches.length > 0) {
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
+        ctx.stroke();
+      }
     }
 
     function stopDrawing() {
@@ -413,6 +416,7 @@
     function playRingtone() {
       try {
         window.initAudioContext();
+        stopRingtone();
         ringtoneInterval = setInterval(() => {
           if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
           if (audioCtx) {
@@ -604,12 +608,14 @@
     }
 
     function listenForBackgroundMessages() {
+      bgListeners.forEach(unsub => unsub());
+      bgListeners = [];
       let contacts = JSON.parse(localStorage.getItem("recent_contacts") || "[]");
       contacts.forEach(c => {
         const chatID = [currentUser.userID, c.userID].sort().join("_");
         const q = query(collection(db, "chats", chatID, "messages"), orderBy("timestamp", "desc"));
         let initialLoad = true;
-        onSnapshot(q, (snapshot) => {
+        const unsub = onSnapshot(q, (snapshot) => {
           if (!snapshot.empty) {
             const latestMsg = snapshot.docs[0].data();
             if (!initialLoad && latestMsg.senderID !== currentUser.userID) {
@@ -622,6 +628,7 @@
           }
           initialLoad = false;
         });
+        bgListeners.push(unsub);
       });
     }
 
@@ -700,48 +707,6 @@
       }
     }
 
-        /* Flash Alert Helper Functions (မီးဖွင့်/ပိတ် သီးသန့် စနစ်) */
-    let flashInterval = null;
-
-    function startFlashAlert() {
-      if (flashInterval) return;
-      let isTorchOn = false;
-
-      flashInterval = setInterval(() => {
-        isTorchOn = !isTorchOn;
-        try {
-          // Cordova / Capacitor Flashlight Plugin ပါဝင်ပါက
-          if (window.plugins && window.plugins.flashlight) {
-            if (isTorchOn) window.plugins.flashlight.switchOn();
-            else window.plugins.flashlight.switchOff();
-          } 
-          // Custom Torch Native Bridge ပါဝင်ပါက
-          else if (window.Torch) {
-            window.Torch.switchState(isTorchOn);
-          }
-        } catch (e) {
-          console.log("Flashlight Error: ", e);
-        }
-      }, 500); // ၀.၅ စက္ကန့်တစ်ခါ မီးဖွင့်/ပိတ် ပုံမှန်လုပ်ပေးမည်
-    }
-
-    function stopFlashAlert() {
-      if (flashInterval) {
-        clearInterval(flashInterval);
-        flashInterval = null;
-      }
-      try {
-        if (window.plugins && window.plugins.flashlight) {
-          window.plugins.flashlight.switchOff();
-        } else if (window.Torch) {
-          window.Torch.switchState(false);
-        }
-      } catch (e) {
-        console.log("Flashlight Stop Error: ", e);
-      }
-    }
-
-    /* Fixed Mic Toggle with Safe Audio Context Recovery */
     window.toggleMic = () => {
       window.initAudioContext();
       if (localStream) {
@@ -756,8 +721,7 @@
       }
     };
 
-    /* Safe Speaker Output Switching Logic */
-    window.toggleSpeaker = async () => {
+     window.toggleSpeaker = async () => {
       window.initAudioContext();
       const remoteAudio = document.getElementById("remoteAudio");
       const remoteVideo = document.getElementById("remoteVideo");
@@ -845,10 +809,7 @@
             const callLabel = currentCallType === "audio" ? "Audio Call" : "Video Call";
             document.getElementById("callStatusText").innerText = `${data.callerName} (@${data.callerUsername}) ထံမှ ${callLabel} ဝင်လာပါသည်...`;
             document.getElementById("acceptCallBtn").style.display = "flex";
-            
             playRingtone();
-            startFlashAlert(); // 👈 ဖုန်းဝင်လာသည်နှင့် Flash မီး စတင်လင်းမည်
-            
             listenForCallEnd(currentUser.userID);
           }
         }
@@ -875,7 +836,7 @@
 
       setupCallUI(type, targetUser.name);
       document.getElementById("videoCallOverlay").style.display = "flex";
-      document.getElementById("callStatusText").innerText = `${type === 'audio' ? 'Audio' : 'Video'} Call ခေါ်ဆိုနေသည်... ခေတ္တစောင့်ပါ`;
+      document.getElementById("callStatusText").innerText = `${type === 'audio' ? 'Audio' : 'Video'} Call ขေါ်ဆိုနေသည်... ခေတ္တစောင့်ပါ`;
       document.getElementById("acceptCallBtn").style.display = "none";
 
       playRingtone();
@@ -925,8 +886,6 @@
     window.acceptIncomingCall = async () => {
       window.initAudioContext();
       stopRingtone();
-      stopFlashAlert(); // 👈 ဖုန်းကိုင်လိုက်ပါက Flash မီး ပိတ်မည်
-      
       document.getElementById("acceptCallBtn").style.display = "none";
       document.getElementById("callStatusText").innerText = "ချိတ်ဆက်နေသည်...";
 
@@ -1004,8 +963,6 @@
 
     function resetCallState() {
       stopRingtone();
-      stopFlashAlert(); // 👈 ဖုန်းချလိုက်ပါက/လိုင်းကျပါက Flash မီး ပိတ်မည်
-      
       if (unsubscribeCallEndListener) {
         unsubscribeCallEndListener();
         unsubscribeCallEndListener = null;
@@ -1038,4 +995,3 @@
   </script>
 </body>
 </html>
-  
