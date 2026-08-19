@@ -4,9 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>IDChat - WebRTC, Audio/Video Call & Username System</title>
+  
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js"></script>
+  
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
-    body { background-color: #f0f2f5; display: flex; justify-content: center; height: 100vh; }
+    body { background-color: #f0f2f5; display: flex; justify-content: center; height: 100vh; margin: 0; padding: 0; }
     .app-container { width: 100%; max-width: 480px; background: #fff; display: flex; flex-direction: column; height: 100vh; box-shadow: 0 0 15px rgba(0,0,0,0.1); position: relative; overflow: hidden; }
     
     .header { background: #0084ff; color: white; padding: 12px 15px; text-align: center; font-size: 18px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
@@ -68,7 +74,6 @@
     .local-video { width: 100px; height: 140px; background: #000; border: 2px solid #fff; border-radius: 10px; position: absolute; top: 10px; right: 10px; object-fit: cover; z-index: 10; }
     .remote-video { width: 100%; height: 100%; object-fit: cover; }
     
-    /* Audio Call Specific UI */
     .audio-avatar-box { display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; gap: 15px; }
     .audio-avatar { width: 110px; height: 110px; border-radius: 50%; background: #0084ff; display: flex; justify-content: center; align-items: center; font-size: 45px; font-weight: bold; border: 3px solid #38bdf8; box-shadow: 0 0 20px rgba(56, 189, 248, 0.4); }
 
@@ -104,7 +109,6 @@
     .banner-title { font-weight: bold; color: #38bdf8; font-size: 12px; }
     .banner-msg { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; color: #f1f5f9; }
 
-    /* Interactive Whiteboard Styles */
     .board-container { flex: 1; display: flex; flex-direction: column; background: #f8fafc; height: 100%; position: relative; }
     .board-toolbar { display: flex; gap: 8px; padding: 10px; background: #fff; border-bottom: 1px solid #e2e8f0; align-items: center; justify-content: space-between; flex-wrap: wrap; }
     .color-picker-box { display: flex; gap: 6px; align-items: center; }
@@ -151,14 +155,12 @@
       <video id="localVideo" class="local-video" autoplay playsinline muted></video>
       <audio id="remoteAudio" autoplay></audio>
       
-      <!-- Audio Call UI Area -->
       <div class="audio-avatar-box" id="audioCallUI" style="display: none;">
         <div class="audio-avatar" id="avatarText">📞</div>
         <h4 id="audioCallerName" style="color: #cbd5e1;">အသံဖြင့် ဖုန်းပြောဆိုနေသည်</h4>
       </div>
     </div>
 
-    <!-- Call Control Buttons -->
     <div class="call-controls">
       <button class="call-action-btn btn-toggle-mic" id="micBtn" onclick="toggleMic()">🎙️</button>
       <button class="call-action-btn btn-toggle-speaker" id="speakerBtn" onclick="toggleSpeaker()">🔊</button>
@@ -181,20 +183,17 @@
       <span>Username: <b id="myUsernameDisplay">-</b></span>
     </div>
 
-    <!-- Navigation Tabs -->
     <div class="nav-tabs">
       <button class="nav-tab active" onclick="switchTab('chatTab', this)">💬 Chat & Call</button>
       <button class="nav-tab" onclick="switchTab('boardTab', this)">🎨 Whiteboard</button>
     </div>
 
-    <!-- Chat Tab Section -->
     <div id="chatTab" class="content-section active">
       <div class="search-box">
         <input type="text" id="targetUsernameInput" placeholder="သူငယ်ချင်း Username ရိုက်ထည့်ပါ">
         <button onclick="connectChat()">စကားပြောမည်</button>
       </div>
 
-      <!-- Saved Contacts List -->
       <div class="recent-contacts" id="recentContacts">
         <span style="font-size: 12px; color: #888; align-self: center;">အဆက်အသွယ်များ: </span>
       </div>
@@ -214,7 +213,6 @@
       </div>
     </div>
 
-    <!-- Whiteboard Tab Section -->
     <div id="boardTab" class="content-section">
       <div class="board-container">
         <div class="board-toolbar">
@@ -233,14 +231,12 @@
         </div>
       </div>
     </div>
-
   </div>
 
-  <!-- Firebase SDK & App Engine -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, deleteDoc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
+  <script>
+    // ============================================================
+    // FIREBASE CONFIG (ပိုမိုလုံခြုံရေးအတွက် backend ကနေ ထုတ်သင့်ပါတယ်)
+    // ============================================================
     const firebaseConfig = {
       apiKey: "AIzaSyD81JR9IoFkwGbkq0UWQ4aqfgwwpvLg668",
       authDomain: "idchat-2bc95.firebaseapp.com",
@@ -251,9 +247,13 @@
       appId: "1:698756711127:web:873c465228b2d0976fa692"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const messaging = firebase.messaging();
 
+    // ============================================================
+    // VARIABLES
+    // ============================================================
     let currentUser = null;
     let targetUser = null;
     let currentChatID = null;
@@ -274,6 +274,7 @@
     let currentCallType = "video"; 
     let isMicMuted = false;
     let isSpeakerOn = false;
+    let fcmToken = null;
 
     const rtcConfig = {
       iceServers: [
@@ -282,17 +283,484 @@
       ]
     };
 
-    window.addEventListener("DOMContentLoaded", () => {
-      const savedUser = localStorage.getItem("idchat_active_user");
-      if (savedUser) {
-        try {
-          const userObj = JSON.parse(savedUser);
-          loginSuccess(userObj.userID, userObj.name, userObj.username, false);
-        } catch(e) {
-          console.error("Auto Login Error", e);
+    // ============================================================
+    // PUSH NOTIFICATION SETUP
+    // ============================================================
+    async function setupPushNotifications() {
+      try {
+        // 1. Permission တောင်းပါ
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          console.log('Notification permission denied');
+          return;
         }
+
+        // 2. VAPID Key (Firebase Console ကနေရယူပါ)
+        const vapidKey = 'YOUR_VAPID_KEY_HERE'; // ဒီနေရာမှာ မင်းရဲ့ VAPID Key ထည့်ပါ
+        
+        // 3. FCM Token ရယူပါ
+        fcmToken = await messaging.getToken({ vapidKey: vapidKey });
+        
+        if (fcmToken) {
+          console.log('FCM Token:', fcmToken);
+          // 4. Token ကို Database မှာ သိမ်းပါ
+          if (currentUser) {
+            await db.collection('users').doc(currentUser.userID).set({
+              fcmToken: fcmToken,
+              fcmUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+          }
+        } else {
+          console.log('No registration token available.');
+        }
+      } catch (error) {
+        console.error('Push notification setup error:', error);
       }
-    });
+    }
+
+    // ============================================================
+    // SEND PUSH NOTIFICATION
+    // ============================================================
+    async function sendPushNotification(targetUserID, title, body, data = {}) {
+      try {
+        // Target user ရဲ့ FCM Token ကိုရယူပါ
+        const userDoc = await db.collection('users').doc(targetUserID).get();
+        const token = userDoc.data()?.fcmToken;
+        
+        if (!token) {
+          console.log('User has no FCM token');
+          return;
+        }
+
+        // FCM API ကိုခေါ်ပါ (Server-side ကနေခေါ်သင့်ပါတယ်)
+        // ဒီနေရာမှာ Client-side ကနေခေါ်တာဖြစ်လို့ လုံခြုံရေးအတွက်
+        // backend API ကိုသုံးဖို့ အကြံပြုပါတယ်
+        const response = await fetch('https://fcm.googleapis.com/fcm/send', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'key=YOUR_SERVER_KEY_HERE', // Firebase Console ကနေရယူပါ
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            to: token,
+            notification: {
+              title: title,
+              body: body,
+              icon: '/icon.png',
+              sound: 'default'
+            },
+            data: {
+              callerID: data.callerID || '',
+              callType: data.callType || '',
+              click_action: 'FLUTTER_NOTIFICATION_CLICK'
+            }
+          })
+        });
+
+        const result = await response.json();
+        console.log('Push notification sent:', result);
+      } catch (error) {
+        console.error('Send push notification error:', error);
+      }
+    }
+
+    // ============================================================
+    // BACKGROUND MESSAGE HANDLER (Service Worker)
+    // ============================================================
+    // ဒီ code က service-worker.js ထဲမှာ ထည့်ပါ
+    // အောက်မှာ service-worker.js အတွက် code ကို သီးခြားရေးပေးထားပါတယ်
+
+    // ============================================================
+    // AUTH FUNCTIONS
+    // ============================================================
+    async function generateUniqueID() {
+      let isUnique = false, newID = "";
+      while (!isUnique) {
+        newID = Math.floor(100000 + Math.random() * 900000).toString();
+        const docSnap = await db.collection('users').doc(newID).get();
+        if (!docSnap.exists) isUnique = true;
+      }
+      return newID;
+    }
+
+     window.handleRegister = async () => {
+      window.initAudioContext();
+      const name = document.getElementById("regName").value.trim();
+      const username = document.getElementById("regUsername").value.trim().toLowerCase().replace("@","");
+      const pass = document.getElementById("regPass").value.trim();
+      
+      if (!name || !username || !pass) return alert("အချက်အလက်များကို ပြည့်စုံစွာ ရိုက်ထည့်ပါ!");
+
+      const uSnap = await db.collection('usernames').doc(username).get();
+      if (uSnap.exists) return alert("ဤ Username ယူထားပြီးဖြစ်ပါသည်။ အခြားနာမည်ပြောင်းပါ!");
+
+      const userID = await generateUniqueID();
+      
+      await db.collection('users').doc(userID).set({ 
+        userID, 
+        name, 
+        username, 
+        password: pass, 
+        createdAt: firebase.firestore.FieldValue.serverTimestamp() 
+      });
+      await db.collection('usernames').doc(username).set({ userID });
+      
+      alert(`အကောင့် အောင်မြင်စွာ ဖန်တီးပြီးပါပြီ!\nသင့်၏ Username: @${username}`);
+      loginSuccess(userID, name, username);
+    };
+
+    window.handleLogin = async () => {
+      window.initAudioContext();
+      const username = document.getElementById("loginUsername").value.trim().toLowerCase().replace("@","");
+      if (!username) return alert("Username ရိုက်ထည့်ပါ!");
+      
+      try {
+        const uSnap = await db.collection('usernames').doc(username).get();
+        if (uSnap.exists) {
+          const userID = uSnap.data().userID;
+          const userDoc = await db.collection('users').doc(userID).get();
+          
+          if (userDoc.exists) {
+            loginSuccess(userID, userDoc.data().name, username);
+          } else {
+            alert("အကောင့် အချက်အလက် ရှာမတွေ့ပါ။");
+          }
+        } else {
+          alert("ဤ Username ဖြင့် အကောင့်မရှိပါ။ အကောင့်အသစ် အရင်ဖွင့်ပါ။");
+        }
+      } catch (error) {
+        console.error("Login Error:", error);
+        alert("Login ဝင်ရာတွင် အမှားအယွင်း ရှိနေပါသည်။");
+      }
+    };
+
+    function loginSuccess(userID, name, username, saveToStorage = true) {
+      currentUser = { userID, name, username };
+      
+      if (saveToStorage) {
+        localStorage.setItem("idchat_active_user", JSON.stringify(currentUser));
+      }
+
+      document.getElementById("myUsernameDisplay").innerText = "@" + username;
+      
+      const userCard = document.getElementById("userNameDisplay").parentElement;
+      if (!document.getElementById("logoutBtn")) {
+        const logoutBtn = document.createElement("span");
+        logoutBtn.id = "logoutBtn";
+        logoutBtn.style.cssText = "color: #ef4444; cursor: pointer; margin-left: 8px; font-size: 11px; text-decoration: underline;";
+        logoutBtn.innerText = "[ထွက်မည်]";
+        logoutBtn.onclick = window.handleLogout;
+        userCard.appendChild(logoutBtn);
+      }
+      
+      document.getElementById("userNameDisplay").innerText = name;
+      document.getElementById("authModal").style.display = "none";
+      
+      // Push Notification Setup
+      setupPushNotifications();
+      
+      loadRecentContacts();
+      listenForIncomingCalls();
+      listenForBackgroundMessages();
+    }
+
+    window.handleLogout = () => {
+      if (confirm("အကောင့်ထဲမှ ထွက်ရန် သေချာပါသလား?")) {
+        localStorage.removeItem("idchat_active_user");
+        location.reload();
+      }
+    };
+
+    // ============================================================
+    // CHAT FUNCTIONS
+    // ============================================================
+    window.connectChat = async (targetUsername = null) => {
+      const uname = targetUsername || document.getElementById("targetUsernameInput").value.trim().toLowerCase().replace("@","");
+      if (!uname || (currentUser && uname === currentUser.username)) return alert("မှန်ကန်သော Username ရိုက်ထည့်ပါ!");
+
+      const uSnap = await db.collection('usernames').doc(uname).get();
+      if (!uSnap.exists) return alert("ဤ Username ဖြင့် အသုံးပြုသူ ရှာမတွေ့ပါ!");
+
+      const targetID = uSnap.data().userID;
+      const tUserDoc = await db.collection('users').doc(targetID).get();
+      
+      targetUser = { userID: targetID, name: tUserDoc.data().name, username: uname };
+      currentChatID = [currentUser.userID, targetID].sort().join("_");
+      
+      if (unreadMap[uname]) {
+        delete unreadMap[uname];
+      }
+
+      saveRecentContact(targetUser);
+      loadMessages();
+    };
+
+    function saveRecentContact(user) {
+      let contacts = JSON.parse(localStorage.getItem("recent_contacts") || "[]");
+      if (!contacts.some(c => c.username === user.username)) {
+        contacts.push(user);
+        localStorage.setItem("recent_contacts", JSON.stringify(contacts));
+      }
+      loadRecentContacts();
+    }
+
+    function loadRecentContacts() {
+      let contacts = JSON.parse(localStorage.getItem("recent_contacts") || "[]");
+      const container = document.getElementById("recentContacts");
+      container.innerHTML = '<span style="font-size: 12px; color: #888; align-self: center;">အဆက်အသွယ်များ: </span>';
+      contacts.forEach(c => {
+        const chip = document.createElement("div");
+        chip.className = "contact-chip";
+        chip.innerHTML = `@${c.username}` + (unreadMap[c.username] ? ' <span class="unread-dot"></span>' : '');
+        chip.onclick = () => {
+          document.getElementById("targetUsernameInput").value = c.username;
+          window.connectChat(c.username);
+        };
+        container.appendChild(chip);
+      });
+    }
+
+    function listenForBackgroundMessages() {
+      bgListeners.forEach(unsub => unsub());
+      bgListeners = [];
+      let contacts = JSON.parse(localStorage.getItem("recent_contacts") || "[]");
+      contacts.forEach(c => {
+        const chatID = [currentUser.userID, c.userID].sort().join("_");
+        const q = db.collection('chats').doc(chatID).collection('messages').orderBy('timestamp', 'desc');
+        let initialLoad = true;
+        const unsub = q.onSnapshot((snapshot) => {
+          if (!snapshot.empty) {
+            const latestMsg = snapshot.docs[0].data();
+            if (!initialLoad && latestMsg.senderID !== currentUser.userID) {
+              unreadMap[c.username] = true;
+              loadRecentContacts();
+              if (!targetUser || targetUser.username !== c.username) {
+                showBannerNotification(c.username, latestMsg.content);
+              }
+            }
+          }
+          initialLoad = false;
+        });
+        bgListeners.push(unsub);
+      });
+    }
+
+    function loadMessages() {
+      if (unsubscribeChat) unsubscribeChat();
+      const q = db.collection('chats').doc(currentChatID).collection('messages').orderBy('timestamp', 'asc');
+      
+      unsubscribeChat = q.onSnapshot((snapshot) => {
+        const chatArea = document.getElementById("chatArea");
+        chatArea.innerHTML = "";
+        snapshot.forEach((doc) => {
+          const msg = doc.data();
+          const msgDiv = document.createElement("div");
+          const timeStr = formatTime(msg.timestamp);
+
+          if (msg.type === "call_log") {
+            msgDiv.className = "message call-log";
+            const icon = msg.callType === "audio" ? "📞" : "📹";
+            msgDiv.innerText = `${icon} ${msg.content} (${timeStr})`;
+          } else {
+            const isMe = msg.senderID === currentUser.userID;
+            msgDiv.className = `message ${isMe ? 'sent' : 'received'}`;
+            msgDiv.innerHTML = `<div>${msg.content}</div><div class="msg-time">${timeStr}</div>`;
+          }
+
+          chatArea.appendChild(msgDiv);
+        });
+        chatArea.scrollTop = chatArea.scrollHeight;
+      });
+    }
+
+    window.sendTextMessage = async () => {
+      const input = document.getElementById("msgInput");
+      const text = input.value.trim();
+      if (!text || !currentChatID) return alert("သူငယ်ချင်း Username အရင် ရိုက်ထည့်ပါ!");
+      
+      await db.collection('chats').doc(currentChatID).collection('messages').add({
+        senderID: currentUser.userID,
+        type: "text",
+        content: text,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      
+      window.clearInput();
+    };
+
+    async function logCallToChat(targetID, callStatusText, callType = "video") {
+      if (currentUser && targetID) {
+        const targetChatID = [currentUser.userID, targetID].sort().join("_");
+        
+        await db.collection('chats').doc(targetChatID).collection('messages').add({
+          senderID: currentUser.userID,
+          type: "call_log",
+          callType: callType,
+          content: callStatusText,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch((err) => console.error("Call Log Error:", err));
+      }
+    }
+
+    // ============================================================
+    // CALL FUNCTIONS (with Push Notification)
+    // ============================================================
+    window.startCall = async (type = "video") => {
+      window.initAudioContext();
+      if (!targetUser) return alert("ခေါ်ဆိုလိုသော သူငယ်ချင်း၏ Username ကို ရိုက်ထည့်၍ မက်ဆေ့ခ်ျ အရင် ချိတ်ဆက်ပါ!");
+
+      activeCallTargetID = targetUser.userID;
+      currentCallType = type;
+
+      try {
+        const constraints = type === "audio" ? { video: false, audio: true } : { video: true, audio: true };
+        localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        
+        if (type === "video") {
+          document.getElementById("localVideo").srcObject = localStream;
+        }
+      } catch (err) {
+        return alert("ကင်မရာ သို့မဟုတ် မိုက်ခရိုဖုန်း အသုံးပြုခွင့် ပိတ်ထားပါသည်။");
+      }
+
+      setupCallUI(type, targetUser.name);
+      document.getElementById("videoCallOverlay").style.display = "flex";
+      document.getElementById("callStatusText").innerText = `${type === 'audio' ? 'Audio' : 'Video'} Call ခေါ်ဆိုနေသည်... ခေတ္တစောင့်ပါ`;
+      document.getElementById("acceptCallBtn").style.display = "none";
+
+      playRingtone();
+      createPeerConnection(targetUser.userID);
+
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+
+      await db.collection('calls').doc(targetUser.userID).set({
+        callerID: currentUser.userID,
+        callerName: currentUser.name,
+        callerUsername: currentUser.username,
+        callType: type,
+        offer: { type: offer.type, sdp: offer.sdp }
+      });
+
+      // 📱 Send Push Notification to target user
+      await sendPushNotification(
+        targetUser.userID,
+        `📞 ${currentUser.name} ထံမှ ${type} Call`,
+        `ဖုန်းဝင်လာပါသည်။ ဖြေမည်လား?`,
+        {
+          callerID: currentUser.userID,
+          callType: type
+        }
+      );
+
+      listenForCallEnd(targetUser.userID);
+
+      const callDoc = db.collection('calls').doc(targetUser.userID);
+      callDoc.onSnapshot(async (snapshot) => {
+        if (!snapshot.exists) {
+          resetCallState();
+          return;
+        }
+
+        const data = snapshot.data();
+        if (data && data.answer && peerConnection && !peerConnection.currentRemoteDescription) {
+          stopRingtone();
+          const remoteDesc = new RTCSessionDescription(data.answer);
+          await peerConnection.setRemoteDescription(remoteDesc);
+          document.getElementById("callStatusText").innerText = `${type === 'audio' ? 'Audio' : 'Video'} Call စတင်ပါပြီ`;
+        }
+      });
+
+      const candidatesCol = db.collection('calls').doc(currentUser.userID).collection('candidates');
+      candidatesCol.onSnapshot((snapshot) => {
+        snapshot.docChanges().forEach(async (change) => {
+          if (change.type === "added") {
+            const candidate = new RTCIceCandidate(change.doc.data());
+            if (peerConnection) {
+              await peerConnection.addIceCandidate(candidate).catch(() => {});
+            }
+          }
+        });
+      });
+    };
+
+    window.acceptIncomingCall = async () => {
+      window.initAudioContext();
+      stopRingtone();
+      document.getElementById("acceptCallBtn").style.display = "none";
+      document.getElementById("callStatusText").innerText = "ချိတ်ဆက်နေသည်...";
+
+      try {
+        const constraints = currentCallType === "audio" ? { video: false, audio: true } : { video: true, audio: true };
+        localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        
+        if (currentCallType === "video") {
+          document.getElementById("localVideo").srcObject = localStream;
+        }
+      } catch (err) {
+        return alert("မိုက်ခရိုဖုန်း / ကင်မရာ ဖွင့်မရပါ။");
+      }
+
+      const callerID = incomingCallData.callerID;
+      createPeerConnection(callerID);
+
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingCallData.offer));
+
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+
+      await db.collection('calls').doc(currentUser.userID).update({
+        answer: { type: answer.type, sdp: answer.sdp }
+      });
+
+      const candidatesCol = db.collection('calls').doc(callerID).collection('candidates');
+      candidatesCol.onSnapshot((snapshot) => {
+        snapshot.docChanges().forEach(async (change) => {
+          if (change.type === "added") {
+            const candidate = new RTCIceCandidate(change.doc.data());
+            if (peerConnection) {
+              await peerConnection.addIceCandidate(candidate).catch(() => {});
+            }
+          }
+        });
+      });
+
+      document.getElementById("callStatusText").innerText = `${currentCallType === 'audio' ? 'Audio' : 'Video'} Call စတင်ပါပြီ`;
+    };
+
+    // ============================================================
+    // UTILITY FUNCTIONS (မပြောင်းလဲပါ)
+    // ============================================================
+    function formatTime(timestamp) {
+      if (!timestamp) return "";
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function showBannerNotification(senderUsername, text) {
+      bannerTargetUser = senderUsername;
+      const banner = document.getElementById("topBanner");
+      document.getElementById("bannerTitle").innerText = `💬 @${senderUsername}`;
+      document.getElementById("bannerText").innerText = text;
+      
+      banner.classList.add("show");
+
+      if (bannerTimeout) clearTimeout(bannerTimeout);
+      const displayDuration = Math.min(Math.max(text.length * 100, 3000), 6000);
+
+      bannerTimeout = setTimeout(() => {
+        banner.classList.remove("show");
+      }, displayDuration);
+    }
+
+    window.clickBanner = () => {
+      if (bannerTimeout) clearTimeout(bannerTimeout);
+      document.getElementById("topBanner").classList.remove("show");
+      if (bannerTargetUser) {
+        document.getElementById("targetUsernameInput").value = bannerTargetUser;
+        window.connectChat(bannerTargetUser);
+      }
+    };
 
     window.initAudioContext = () => {
       if (!audioCtx) {
@@ -302,6 +770,227 @@
         audioCtx.resume();
       }
     };
+
+    function playRingtone() {
+      try {
+        window.initAudioContext();
+        stopRingtone();
+        ringtoneInterval = setInterval(() => {
+          if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+          if (audioCtx) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.8);
+          }
+        }, 1500);
+      } catch (e) { console.log(e); }
+    }
+
+    function stopRingtone() {
+      if (ringtoneInterval) {
+        clearInterval(ringtoneInterval);
+        ringtoneInterval = null;
+      }
+    }
+
+    function setupCallUI(callType, callerName = "") {
+      const localVideo = document.getElementById("localVideo");
+      const remoteVideo = document.getElementById("remoteVideo");
+      const audioUI = document.getElementById("audioCallUI");
+
+      if (callType === "audio") {
+        localVideo.style.display = "none";
+        remoteVideo.style.display = "none";
+        audioUI.style.display = "flex";
+        document.getElementById("avatarText").innerText = callerName ? callerName.charAt(0).toUpperCase() : "📞";
+        document.getElementById("audioCallerName").innerText = callerName || "အသံဖြင့် ဖုန်းပြောဆိုနေသည်";
+      } else {
+        localVideo.style.display = "block";
+        remoteVideo.style.display = "block";
+        audioUI.style.display = "none";
+      }
+    }
+
+    window.toggleMic = () => {
+      window.initAudioContext();
+      if (localStream) {
+        const audioTrack = localStream.getAudioTracks()[0];
+        if (audioTrack) {
+          isMicMuted = !isMicMuted;
+          audioTrack.enabled = !isMicMuted;
+          const btn = document.getElementById("micBtn");
+          btn.classList.toggle("muted", isMicMuted);
+          btn.innerText = isMicMuted ? "🎙️❌" : "🎙️";
+        }
+      }
+    };
+
+    window.toggleSpeaker = async () => {
+      window.initAudioContext();
+      const remoteAudio = document.getElementById("remoteAudio");
+      const remoteVideo = document.getElementById("remoteVideo");
+      const element = currentCallType === "audio" ? remoteAudio : remoteVideo;
+      const btn = document.getElementById("speakerBtn");
+
+      try {
+        if (element && typeof element.setSinkId === 'function') {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const audioOutputs = devices.filter(device => device.kind === 'audiooutput');
+          
+          if (audioOutputs.length > 1) {
+            isSpeakerOn = !isSpeakerOn;
+            const targetDevice = isSpeakerOn ? audioOutputs[1].deviceId : audioOutputs[0].deviceId;
+            await element.setSinkId(targetDevice);
+            btn.classList.toggle("active", isSpeakerOn);
+          } else {
+            alert("Speaker Switch ပြုလုပ်ရန် သီးခြား Speaker ဖုန်းထဲတွင် မတွေ့ပါ။");
+          }
+        } else {
+          btn.classList.toggle("active");
+          alert("သင့် Browser / Phone Hardware မှ Audio Output လမ်းကြောင်းပြောင်းခြင်းကို တိုက်ရိုက် မထောက်ပံ့ပါ။");
+        }
+      } catch (e) {
+        console.error("Speaker Switch Error:", e);
+      }
+    };
+
+    function createPeerConnection(targetID) {
+      try {
+        peerConnection = new RTCPeerConnection(rtcConfig);
+
+        if (localStream) {
+          localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+        }
+
+        peerConnection.ontrack = (event) => {
+          window.initAudioContext();
+          if (currentCallType === "audio") {
+            const remoteAudio = document.getElementById("remoteAudio");
+            if (remoteAudio && event.streams[0]) {
+              remoteAudio.srcObject = event.streams[0];
+            }
+          } else {
+            const remoteVideo = document.getElementById("remoteVideo");
+            if (remoteVideo && event.streams[0]) {
+              remoteVideo.srcObject = event.streams[0];
+            }
+          }
+        };
+
+        peerConnection.onicecandidate = (event) => {
+          if (event.candidate && activeCallTargetID) {
+            const candidateCol = db.collection('calls').doc(activeCallTargetID).collection('candidates');
+            candidateCol.add(event.candidate.toJSON()).catch(() => {});
+          }
+        };
+      } catch (err) {
+        console.error("PeerConnection error: ", err);
+      }
+    }
+
+    function listenForCallEnd(callDocID) {
+      if (unsubscribeCallEndListener) unsubscribeCallEndListener();
+      const callDocRef = db.collection('calls').doc(callDocID);
+      unsubscribeCallEndListener = callDocRef.onSnapshot((snapshot) => {
+        if (!snapshot.exists) {
+          resetCallState();
+        }
+      });
+    }
+
+    function listenForIncomingCalls() {
+      if (!currentUser) return;
+      db.collection('calls').doc(currentUser.userID).onSnapshot((snapshot) => {
+        if (snapshot.exists) {
+          const data = snapshot.data();
+          if (data && data.offer && !peerConnection) {
+            incomingCallData = data;
+            activeCallTargetID = data.callerID;
+            currentCallType = data.callType || "video";
+            
+            setupCallUI(currentCallType, data.callerName);
+            document.getElementById("videoCallOverlay").style.display = "flex";
+            const callLabel = currentCallType === "audio" ? "Audio Call" : "Video Call";
+            document.getElementById("callStatusText").innerText = `${data.callerName} (@${data.callerUsername}) ထံမှ ${callLabel} ဝင်လာပါသည်...`;
+            document.getElementById("acceptCallBtn").style.display = "flex";
+            playRingtone();
+            listenForCallEnd(currentUser.userID);
+          }
+        }
+      });
+    }
+
+    async function clearCandidates(callDocID) {
+      try {
+        const candidatesCol = db.collection('calls').doc(callDocID).collection('candidates');
+        const snapshot = await candidatesCol.get();
+        snapshot.forEach(async (docSnapshot) => {
+          await docSnapshot.ref.delete();
+        });
+      } catch(e) { console.log(e); }
+    }
+
+    window.endCall = async () => {
+      try {
+        if (activeCallTargetID) {
+          const callTypeName = currentCallType === "audio" ? "Audio Call" : "Video Call";
+          const statusText = peerConnection && peerConnection.remoteDescription 
+            ? `${callTypeName} ပြောဆိုမှု ပြီးဆုံးခဲ့သည်` 
+            : `${callTypeName} ခေါ်ဆိုမှုကို ပယ်ဖျက်လိုက်သည်`;
+            
+          await logCallToChat(activeCallTargetID, statusText, currentCallType);
+          await clearCandidates(activeCallTargetID);
+          await db.collection('calls').doc(activeCallTargetID).delete().catch(() => {});
+        }
+        
+        if (currentUser) {
+          await clearCandidates(currentUser.userID);
+          await db.collection('calls').doc(currentUser.userID).delete().catch(() => {});
+        }
+      } catch (err) {
+        console.error("End call error: ", err);
+      } finally {
+        resetCallState();
+      }
+    };
+
+    function resetCallState() {
+      stopRingtone();
+      if (unsubscribeCallEndListener) {
+        unsubscribeCallEndListener();
+        unsubscribeCallEndListener = null;
+      }
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+      }
+      if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+      }
+      
+      const remoteVideo = document.getElementById("remoteVideo");
+      const localVideo = document.getElementById("localVideo");
+      const remoteAudio = document.getElementById("remoteAudio");
+
+      if (remoteVideo) remoteVideo.srcObject = null;
+      if (localVideo) localVideo.srcObject = null;
+      if (remoteAudio) remoteAudio.srcObject = null;
+
+      isMicMuted = false;
+      isSpeakerOn = false;
+      document.getElementById("micBtn").classList.remove("muted");
+      document.getElementById("micBtn").innerText = "🎙️";
+      document.getElementById("speakerBtn").classList.remove("active");
+
+      document.getElementById("videoCallOverlay").style.display = "none";
+    }
 
     window.switchTab = (tabId, element) => {
       document.querySelectorAll('.content-section').forEach(el => el.classList.remove('active'));
@@ -337,7 +1026,9 @@
       input.focus();
     };
 
-    /* Interactive Canvas Whiteboard Logic */
+    // ============================================================
+    // WHITEBOARD FUNCTIONS (မပြောင်းလဲပါ)
+    // ============================================================
     let canvas, ctx, isDrawing = false, currentColor = '#000000';
 
     function initCanvas() {
@@ -412,586 +1103,26 @@
       isDrawing = false;
     }
 
-    /* Audio & Ringtone Handling */
-    function playRingtone() {
-      try {
-        window.initAudioContext();
-        stopRingtone();
-        ringtoneInterval = setInterval(() => {
-          if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-          if (audioCtx) {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(440, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.8);
-          }
-        }, 1500);
-      } catch (e) { console.log(e); }
-    }
-
-    function stopRingtone() {
-      if (ringtoneInterval) {
-        clearInterval(ringtoneInterval);
-        ringtoneInterval = null;
-      }
-    }
-
-    function formatTime(timestamp) {
-      if (!timestamp) return "";
-      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-
-    function showBannerNotification(senderUsername, text) {
-      bannerTargetUser = senderUsername;
-      const banner = document.getElementById("topBanner");
-      document.getElementById("bannerTitle").innerText = `💬 @${senderUsername}`;
-      document.getElementById("bannerText").innerText = text;
-      
-      banner.classList.add("show");
-
-      if (bannerTimeout) clearTimeout(bannerTimeout);
-      const displayDuration = Math.min(Math.max(text.length * 100, 3000), 6000);
-
-      bannerTimeout = setTimeout(() => {
-        banner.classList.remove("show");
-      }, displayDuration);
-    }
-
-    window.clickBanner = () => {
-      if (bannerTimeout) clearTimeout(bannerTimeout);
-      document.getElementById("topBanner").classList.remove("show");
-      if (bannerTargetUser) {
-        document.getElementById("targetUsernameInput").value = bannerTargetUser;
-        window.connectChat(bannerTargetUser);
-      }
-    };
-
-    async function generateUniqueID() {
-      let isUnique = false, newID = "";
-      while (!isUnique) {
-        newID = Math.floor(100000 + Math.random() * 900000).toString();
-        const docSnap = await getDoc(doc(db, "users", newID));
-        if (!docSnap.exists()) isUnique = true;
-      }
-      return newID;
-    }
-
-    window.handleRegister = async () => {
-      window.initAudioContext();
-      const name = document.getElementById("regName").value.trim();
-      const username = document.getElementById("regUsername").value.trim().toLowerCase().replace("@","");
-      const pass = document.getElementById("regPass").value.trim();
-      
-      if (!name || !username || !pass) return alert("အချက်အလက်များကို ပြည့်စုံစွာ ရိုက်ထည့်ပါ!");
-
-      const uSnap = await getDoc(doc(db, "usernames", username));
-      if (uSnap.exists()) return alert("ဤ Username ယူထားပြီးဖြစ်ပါသည်။ အခြားနာမည်ပြောင်းပါ!");
-
-      const userID = await generateUniqueID();
-      
-      await setDoc(doc(db, "users", userID), { userID, name, username, password: pass, createdAt: serverTimestamp() });
-      await setDoc(doc(db, "usernames", username), { userID });
-      
-      alert(`အကောင့် အောင်မြင်စွာ ဖန်တီးပြီးပါပြီ!\nသင့်၏ Username: @${username}`);
-      loginSuccess(userID, name, username);
-    };
-
-    window.handleLogin = async () => {
-      window.initAudioContext();
-      const username = document.getElementById("loginUsername").value.trim().toLowerCase().replace("@","");
-      if (!username) return alert("Username ရိုက်ထည့်ပါ!");
-      
-      try {
-        const uSnap = await getDoc(doc(db, "usernames", username));
-        if (uSnap.exists()) {
-          const userID = uSnap.data().userID;
-          const userDoc = await getDoc(doc(db, "users", userID));
-          
-          if (userDoc.exists()) {
-            loginSuccess(userID, userDoc.data().name, username);
-          } else {
-            alert("အကောင့် အချက်အလက် ရှာမတွေ့ပါ။");
-          }
-        } else {
-          alert("ဤ Username ဖြင့် အကောင့်မရှိပါ။ အကောင့်အသစ် အရင်ဖွင့်ပါ။");
-        }
-      } catch (error) {
-        console.error("Login Error:", error);
-        alert("Login ဝင်ရာတွင် အမှားအယွင်း ရှိနေပါသည်။");
-      }
-    };
-
-    function loginSuccess(userID, name, username, saveToStorage = true) {
-      currentUser = { userID, name, username };
-      
-      if (saveToStorage) {
-        localStorage.setItem("idchat_active_user", JSON.stringify(currentUser));
-      }
-
-      document.getElementById("myUsernameDisplay").innerText = "@" + username;
-      
-      const userCard = document.getElementById("userNameDisplay").parentElement;
-      if (!document.getElementById("logoutBtn")) {
-        const logoutBtn = document.createElement("span");
-        logoutBtn.id = "logoutBtn";
-        logoutBtn.style.cssText = "color: #ef4444; cursor: pointer; margin-left: 8px; font-size: 11px; text-decoration: underline;";
-        logoutBtn.innerText = "[ထွက်မည်]";
-        logoutBtn.onclick = window.handleLogout;
-        userCard.appendChild(logoutBtn);
-      }
-      
-      document.getElementById("userNameDisplay").innerText = name;
-      document.getElementById("authModal").style.display = "none";
-      
-      loadRecentContacts();
-      listenForIncomingCalls();
-      listenForBackgroundMessages();
-    }
-
-    window.handleLogout = () => {
-      if (confirm("အကောင့်ထဲမှ ထွက်ရန် သေချာပါသလား?")) {
-        localStorage.removeItem("idchat_active_user");
-        location.reload();
-      }
-    };
-
-    window.connectChat = async (targetUsername = null) => {
-      const uname = targetUsername || document.getElementById("targetUsernameInput").value.trim().toLowerCase().replace("@","");
-      if (!uname || (currentUser && uname === currentUser.username)) return alert("မှန်ကန်သော Username ရိုက်ထည့်ပါ!");
-
-      const uSnap = await getDoc(doc(db, "usernames", uname));
-      if (!uSnap.exists()) return alert("ဤ Username ဖြင့် အသုံးပြုသူ ရှာမတွေ့ပါ!");
-
-      const targetID = uSnap.data().userID;
-      const tUserDoc = await getDoc(doc(db, "users", targetID));
-      
-      targetUser = { userID: targetID, name: tUserDoc.data().name, username: uname };
-      currentChatID = [currentUser.userID, targetID].sort().join("_");
-      
-      if (unreadMap[uname]) {
-        delete unreadMap[uname];
-      }
-
-      saveRecentContact(targetUser);
-      loadMessages();
-    };
-
-    function saveRecentContact(user) {
-      let contacts = JSON.parse(localStorage.getItem("recent_contacts") || "[]");
-      if (!contacts.some(c => c.username === user.username)) {
-        contacts.push(user);
-        localStorage.setItem("recent_contacts", JSON.stringify(contacts));
-      }
-      loadRecentContacts();
-    }
-
-    function loadRecentContacts() {
-      let contacts = JSON.parse(localStorage.getItem("recent_contacts") || "[]");
-      const container = document.getElementById("recentContacts");
-      container.innerHTML = '<span style="font-size: 12px; color: #888; align-self: center;">အဆက်အသွယ်များ: </span>';
-      contacts.forEach(c => {
-        const chip = document.createElement("div");
-        chip.className = "contact-chip";
-        chip.innerHTML = `@${c.username}` + (unreadMap[c.username] ? ' <span class="unread-dot"></span>' : '');
-        chip.onclick = () => {
-          document.getElementById("targetUsernameInput").value = c.username;
-          window.connectChat(c.username);
-        };
-        container.appendChild(chip);
-      });
-    }
-
-    function listenForBackgroundMessages() {
-      bgListeners.forEach(unsub => unsub());
-      bgListeners = [];
-      let contacts = JSON.parse(localStorage.getItem("recent_contacts") || "[]");
-      contacts.forEach(c => {
-        const chatID = [currentUser.userID, c.userID].sort().join("_");
-        const q = query(collection(db, "chats", chatID, "messages"), orderBy("timestamp", "desc"));
-        let initialLoad = true;
-        const unsub = onSnapshot(q, (snapshot) => {
-          if (!snapshot.empty) {
-            const latestMsg = snapshot.docs[0].data();
-            if (!initialLoad && latestMsg.senderID !== currentUser.userID) {
-              unreadMap[c.username] = true;
-              loadRecentContacts();
-              if (!targetUser || targetUser.username !== c.username) {
-                showBannerNotification(c.username, latestMsg.content);
-              }
-            }
-          }
-          initialLoad = false;
-        });
-        bgListeners.push(unsub);
-      });
-    }
-
-    function loadMessages() {
-      if (unsubscribeChat) unsubscribeChat();
-      const q = query(collection(db, "chats", currentChatID, "messages"), orderBy("timestamp", "asc"));
-      
-      unsubscribeChat = onSnapshot(q, (snapshot) => {
-        const chatArea = document.getElementById("chatArea");
-        chatArea.innerHTML = "";
-        snapshot.forEach((doc) => {
-          const msg = doc.data();
-          const msgDiv = document.createElement("div");
-          const timeStr = formatTime(msg.timestamp);
-
-          if (msg.type === "call_log") {
-            msgDiv.className = "message call-log";
-            const icon = msg.callType === "audio" ? "📞" : "📹";
-            msgDiv.innerText = `${icon} ${msg.content} (${timeStr})`;
-          } else {
-            const isMe = msg.senderID === currentUser.userID;
-            msgDiv.className = `message ${isMe ? 'sent' : 'received'}`;
-            msgDiv.innerHTML = `<div>${msg.content}</div><div class="msg-time">${timeStr}</div>`;
-          }
-
-          chatArea.appendChild(msgDiv);
-        });
-        chatArea.scrollTop = chatArea.scrollHeight;
-      });
-    }
-
-    window.sendTextMessage = async () => {
-      const input = document.getElementById("msgInput");
-      const text = input.value.trim();
-      if (!text || !currentChatID) return alert("သူငယ်ချင်း Username အရင် ရိုက်ထည့်ပါ!");
-      
-      await addDoc(collection(db, "chats", currentChatID, "messages"), {
-        senderID: currentUser.userID,
-        type: "text",
-        content: text,
-        timestamp: serverTimestamp()
-      });
-      
-      window.clearInput();
-    };
-
-    async function logCallToChat(targetID, callStatusText, callType = "video") {
-      if (currentUser && targetID) {
-        const targetChatID = [currentUser.userID, targetID].sort().join("_");
-        
-        await addDoc(collection(db, "chats", targetChatID, "messages"), {
-          senderID: currentUser.userID,
-          type: "call_log",
-          callType: callType,
-          content: callStatusText,
-          timestamp: serverTimestamp()
-        }).catch((err) => console.error("Call Log Error:", err));
-      }
-    }
-
-    function setupCallUI(callType, callerName = "") {
-      const localVideo = document.getElementById("localVideo");
-      const remoteVideo = document.getElementById("remoteVideo");
-      const audioUI = document.getElementById("audioCallUI");
-
-      if (callType === "audio") {
-        localVideo.style.display = "none";
-        remoteVideo.style.display = "none";
-        audioUI.style.display = "flex";
-        document.getElementById("avatarText").innerText = callerName ? callerName.charAt(0).toUpperCase() : "📞";
-        document.getElementById("audioCallerName").innerText = callerName || "အသံဖြင့် ဖုန်းပြောဆိုနေသည်";
-      } else {
-        localVideo.style.display = "block";
-        remoteVideo.style.display = "block";
-        audioUI.style.display = "none";
-      }
-    }
-
-    window.toggleMic = () => {
-      window.initAudioContext();
-      if (localStream) {
-        const audioTrack = localStream.getAudioTracks()[0];
-        if (audioTrack) {
-          isMicMuted = !isMicMuted;
-          audioTrack.enabled = !isMicMuted;
-          const btn = document.getElementById("micBtn");
-          btn.classList.toggle("muted", isMicMuted);
-          btn.innerText = isMicMuted ? "🎙️❌" : "🎙️";
+   // ============================================================
+    // AUTO LOGIN
+    // ============================================================
+    window.addEventListener("DOMContentLoaded", () => {
+      const savedUser = localStorage.getItem("idchat_active_user");
+      if (savedUser) {
+        try {
+          const userObj = JSON.parse(savedUser);
+          loginSuccess(userObj.userID, userObj.name, userObj.username, false);
+        } catch(e) {
+          console.error("Auto Login Error", e);
         }
       }
-    };
+    });
 
-     window.toggleSpeaker = async () => {
-      window.initAudioContext();
-      const remoteAudio = document.getElementById("remoteAudio");
-      const remoteVideo = document.getElementById("remoteVideo");
-      const element = currentCallType === "audio" ? remoteAudio : remoteVideo;
-      const btn = document.getElementById("speakerBtn");
-
-      try {
-        if (element && typeof element.setSinkId === 'function') {
-          const devices = await navigator.mediaDevices.enumerateDevices();
-          const audioOutputs = devices.filter(device => device.kind === 'audiooutput');
-          
-          if (audioOutputs.length > 1) {
-            isSpeakerOn = !isSpeakerOn;
-            const targetDevice = isSpeakerOn ? audioOutputs[1].deviceId : audioOutputs[0].deviceId;
-            await element.setSinkId(targetDevice);
-            btn.classList.toggle("active", isSpeakerOn);
-          } else {
-            alert("Speaker Switch ပြုလုပ်ရန် သီးခြား Speaker ဖုန်းထဲတွင် မတွေ့ပါ။");
-          }
-        } else {
-          btn.classList.toggle("active");
-          alert("သင့် Browser / Phone Hardware မှ Audio Output လမ်းကြောင်းပြောင်းခြင်းကို တိုက်ရိုက် မထောက်ပံ့ပါ။");
-        }
-      } catch (e) {
-        console.error("Speaker Switch Error:", e);
-      }
-    };
-
-    function createPeerConnection(targetID) {
-      try {
-        peerConnection = new RTCPeerConnection(rtcConfig);
-
-        if (localStream) {
-          localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-        }
-
-        peerConnection.ontrack = (event) => {
-          window.initAudioContext();
-          if (currentCallType === "audio") {
-            const remoteAudio = document.getElementById("remoteAudio");
-            if (remoteAudio && event.streams[0]) {
-              remoteAudio.srcObject = event.streams[0];
-            }
-          } else {
-            const remoteVideo = document.getElementById("remoteVideo");
-            if (remoteVideo && event.streams[0]) {
-              remoteVideo.srcObject = event.streams[0];
-            }
-          }
-        };
-
-        peerConnection.onicecandidate = (event) => {
-          if (event.candidate && activeCallTargetID) {
-            const candidateCol = collection(db, "calls", activeCallTargetID, "candidates");
-            addDoc(candidateCol, event.candidate.toJSON()).catch(() => {});
-          }
-        };
-      } catch (err) {
-        console.error("PeerConnection error: ", err);
-      }
-    }
-
-    function listenForCallEnd(callDocID) {
-      if (unsubscribeCallEndListener) unsubscribeCallEndListener();
-      const callDocRef = doc(db, "calls", callDocID);
-      unsubscribeCallEndListener = onSnapshot(callDocRef, (snapshot) => {
-        if (!snapshot.exists()) {
-          resetCallState();
-        }
-      });
-    }
-
-    function listenForIncomingCalls() {
-      if (!currentUser) return;
-      onSnapshot(doc(db, "calls", currentUser.userID), (snapshot) => {
-        if (snapshot.exists()) {
-          const data = snapshot.data();
-          if (data && data.offer && !peerConnection) {
-            incomingCallData = data;
-            activeCallTargetID = data.callerID;
-            currentCallType = data.callType || "video";
-            
-            setupCallUI(currentCallType, data.callerName);
-            document.getElementById("videoCallOverlay").style.display = "flex";
-            const callLabel = currentCallType === "audio" ? "Audio Call" : "Video Call";
-            document.getElementById("callStatusText").innerText = `${data.callerName} (@${data.callerUsername}) ထံမှ ${callLabel} ဝင်လာပါသည်...`;
-            document.getElementById("acceptCallBtn").style.display = "flex";
-            playRingtone();
-            listenForCallEnd(currentUser.userID);
-          }
-        }
-      });
-    }
-
-    window.startCall = async (type = "video") => {
-      window.initAudioContext();
-      if (!targetUser) return alert("ခေါ်ဆိုလိုသော သူငယ်ချင်း၏ Username ကို ရိုက်ထည့်၍ မက်ဆေ့ခ်ျ အရင် ချိတ်ဆက်ပါ!");
-
-      activeCallTargetID = targetUser.userID;
-      currentCallType = type;
-
-      try {
-        const constraints = type === "audio" ? { video: false, audio: true } : { video: true, audio: true };
-        localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        
-        if (type === "video") {
-          document.getElementById("localVideo").srcObject = localStream;
-        }
-      } catch (err) {
-        return alert("ကင်မရာ သို့မဟုတ် မိုက်ခရိုဖုန်း အသုံးပြုခွင့် ပိတ်ထားပါသည်။");
-      }
-
-      setupCallUI(type, targetUser.name);
-      document.getElementById("videoCallOverlay").style.display = "flex";
-      document.getElementById("callStatusText").innerText = `${type === 'audio' ? 'Audio' : 'Video'} Call ขေါ်ဆိုနေသည်... ခေတ္တစောင့်ပါ`;
-      document.getElementById("acceptCallBtn").style.display = "none";
-
-      playRingtone();
-      createPeerConnection(targetUser.userID);
-
-      const offer = await peerConnection.createOffer();
-      await peerConnection.setLocalDescription(offer);
-
-      await setDoc(doc(db, "calls", targetUser.userID), {
-        callerID: currentUser.userID,
-        callerName: currentUser.name,
-        callerUsername: currentUser.username,
-        callType: type,
-        offer: { type: offer.type, sdp: offer.sdp }
-      });
-
-      listenForCallEnd(targetUser.userID);
-
-      onSnapshot(doc(db, "calls", targetUser.userID), async (snapshot) => {
-        if (!snapshot.exists()) {
-          resetCallState();
-          return;
-        }
-
-        const data = snapshot.data();
-        if (data && data.answer && peerConnection && !peerConnection.currentRemoteDescription) {
-          stopRingtone();
-          const remoteDesc = new RTCSessionDescription(data.answer);
-          await peerConnection.setRemoteDescription(remoteDesc);
-          document.getElementById("callStatusText").innerText = `${type === 'audio' ? 'Audio' : 'Video'} Call စတင်ပါပြီ`;
-        }
-      });
-
-      const candidatesCol = collection(db, "calls", currentUser.userID, "candidates");
-      onSnapshot(candidatesCol, (snapshot) => {
-        snapshot.docChanges().forEach(async (change) => {
-          if (change.type === "added") {
-            const candidate = new RTCIceCandidate(change.doc.data());
-            if (peerConnection) {
-              await peerConnection.addIceCandidate(candidate).catch(() => {});
-            }
-          }
-        });
-      });
-    };
-
-    window.acceptIncomingCall = async () => {
-      window.initAudioContext();
-      stopRingtone();
-      document.getElementById("acceptCallBtn").style.display = "none";
-      document.getElementById("callStatusText").innerText = "ချိတ်ဆက်နေသည်...";
-
-      try {
-        const constraints = currentCallType === "audio" ? { video: false, audio: true } : { video: true, audio: true };
-        localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        
-        if (currentCallType === "video") {
-          document.getElementById("localVideo").srcObject = localStream;
-        }
-      } catch (err) {
-        return alert("မိုက်ခရိုဖုန်း / ကင်မရာ ဖွင့်မရပါ။");
-      }
-
-      const callerID = incomingCallData.callerID;
-      createPeerConnection(callerID);
-
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingCallData.offer));
-
-      const answer = await peerConnection.createAnswer();
-      await peerConnection.setLocalDescription(answer);
-
-      await updateDoc(doc(db, "calls", currentUser.userID), {
-        answer: { type: answer.type, sdp: answer.sdp }
-      });
-
-      const candidatesCol = collection(db, "calls", callerID, "candidates");
-      onSnapshot(candidatesCol, (snapshot) => {
-        snapshot.docChanges().forEach(async (change) => {
-          if (change.type === "added") {
-            const candidate = new RTCIceCandidate(change.doc.data());
-            if (peerConnection) {
-              await peerConnection.addIceCandidate(candidate).catch(() => {});
-            }
-          }
-        });
-      });
-
-      document.getElementById("callStatusText").innerText = `${currentCallType === 'audio' ? 'Audio' : 'Video'} Call စတင်ပါပြီ`;
-    };
-
-    async function clearCandidates(callDocID) {
-      try {
-        const candidatesCol = collection(db, "calls", callDocID, "candidates");
-        const snapshot = await getDocs(candidatesCol);
-        snapshot.forEach(async (docSnapshot) => {
-          await deleteDoc(docSnapshot.ref);
-        });
-      } catch(e) { console.log(e); }
-    }
-
-    window.endCall = async () => {
-      try {
-        if (activeCallTargetID) {
-          const callTypeName = currentCallType === "audio" ? "Audio Call" : "Video Call";
-          const statusText = peerConnection && peerConnection.remoteDescription 
-            ? `${callTypeName} ပြောဆိုမှု ပြီးဆုံးခဲ့သည်` 
-            : `${callTypeName} ခေါ်ဆိုမှုကို ပယ်ဖျက်လိုက်သည်`;
-            
-          await logCallToChat(activeCallTargetID, statusText, currentCallType);
-          await clearCandidates(activeCallTargetID);
-          await deleteDoc(doc(db, "calls", activeCallTargetID)).catch(() => {});
-        }
-        
-        if (currentUser) {
-          await clearCandidates(currentUser.userID);
-          await deleteDoc(doc(db, "calls", currentUser.userID)).catch(() => {});
-        }
-      } catch (err) {
-        console.error("End call error: ", err);
-      } finally {
-        resetCallState();
-      }
-    };
-
-    function resetCallState() {
-      stopRingtone();
-      if (unsubscribeCallEndListener) {
-        unsubscribeCallEndListener();
-        unsubscribeCallEndListener = null;
-      }
-      if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
-      }
-      if (peerConnection) {
-        peerConnection.close();
-        peerConnection = null;
-      }
-      
-      const remoteVideo = document.getElementById("remoteVideo");
-      const localVideo = document.getElementById("localVideo");
-      const remoteAudio = document.getElementById("remoteAudio");
-
-      if (remoteVideo) remoteVideo.srcObject = null;
-      if (localVideo) localVideo.srcObject = null;
-      if (remoteAudio) remoteAudio.srcObject = null;
-
-      isMicMuted = false;
-      isSpeakerOn = false;
-      document.getElementById("micBtn").classList.remove("muted");
-      document.getElementById("micBtn").innerText = "🎙️";
-      document.getElementById("speakerBtn").classList.remove("active");
-
-      document.getElementById("videoCallOverlay").style.display = "none";
-    }
+    // ============================================================
+    // INIT
+    // ============================================================
+    console.log('🚀 IDChat with Push Notification Loaded Successfully!');
   </script>
+
 </body>
 </html>
