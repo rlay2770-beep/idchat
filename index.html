@@ -1112,24 +1112,31 @@
       return newID;
     }
 
-    window.handleRegister = async () => {
+        window.handleRegister = async () => {
       window.initAudioContext();
       const name = document.getElementById("regName").value.trim();
-      const username = document.getElementById("regUsername").value.trim().toLowerCase().replace("@","");
+      const rawUsername = document.getElementById("regUsername").value.trim().replace("@","");
+      const username = rawUsername.toLowerCase();
       const pass = document.getElementById("regPass").value.trim();
       
       if (!name || !username || !pass) return alert("အချက်အလက်များကို ပြည့်စုံစွာ ရိုက်ထည့်ပါ!");
 
-      const uSnap = await getDoc(doc(db, "usernames", username));
-      if (uSnap.exists()) return alert("ဤ Username ယူထားပြီးဖြစ်ပါသည်။ အခြားနာမည်ပြောင်းပါ!");
+      try {
+        const uSnap = await getDoc(doc(db, "usernames", username));
+        if (uSnap.exists()) return alert("ဤ Username ယူထားပြီးဖြစ်ပါသည်။ အခြားနာမည်ပြောင်းပါ!");
 
-      const userID = await generateUniqueID();
-      
-      await setDoc(doc(db, "users", userID), { userID, name, username, password: pass, createdAt: serverTimestamp() });
-      await setDoc(doc(db, "usernames", username), { userID });
-      
-      alert(`အကောင့် အောင်မြင်စွာ ဖန်တီးပြီးပါပြီ!\nသင့်၏ Username: @${username}`);
-      loginSuccess(userID, name, username);
+        const userID = await generateUniqueID();
+        
+        // Users collection နဲ့ Usernames collection နှစ်ခုလုံးသို့ သေချာစွာ သိမ်းဆည်းခြင်း
+        await setDoc(doc(db, "users", userID), { userID, name, username, password: pass, createdAt: serverTimestamp() });
+        await setDoc(doc(db, "usernames", username), { userID });
+        
+        alert(`အကောင့် အောင်မြင်စွာ ဖန်တီးပြီးပါပြီ!\nသင့်၏ Username: @${username}`);
+        loginSuccess(userID, name, username);
+      } catch (error) {
+        console.error("Register Error:", error);
+        alert("အကောင့်ဖွင့်ရာတွင် အမှားအယွင်း ရှိနေပါသည်။");
+      }
     };
 
     window.handleLogin = async () => {
@@ -1144,18 +1151,20 @@
           const userDoc = await getDoc(doc(db, "users", userID));
           
           if (userDoc.exists()) {
-            loginSuccess(userID, userDoc.data().name, username);
+            const userData = userDoc.data();
+            loginSuccess(userID, userData.name, username);
           } else {
             alert("အကောင့် အချက်အလက် ရှာမတွေ့ပါ။");
           }
         } else {
-          alert("ဤ Username ဖြင့် အကောင့်မရှိပါ။ အကောင့်အသစ် အရင်ဖွင့်ပါ။");
+          alert("ဤ Username ဖြင့် အကောင့်မရှိပါ။ Username သေချာစစ်ဆေးပါ သို့မဟုတ် အကောင့်အသစ် ဖွင့်ပါ။");
         }
       } catch (error) {
         console.error("Login Error:", error);
-        alert("Login ဝင်ရာတွင် အမှားအယွင်း ရှိနေပါသည်။");
+        alert("Login ဝင်ရာတွင် အမှားအယွင်း ရှိနေပါသည်။ (Network သို့မဟုတ် Firebase Rule ကို စစ်ဆေးပါ)");
       }
     };
+                                       
 
     function loginSuccess(userID, name, username, saveToStorage = true) {
       currentUser = { userID, name, username };
