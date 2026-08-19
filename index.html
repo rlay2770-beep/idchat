@@ -440,6 +440,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, deleteDoc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyD81JR9IoFkwGbkq0UWQ4aqfgwwpvLg668",
@@ -451,8 +452,17 @@
       appId: "1:698756711127:web:873c465228b2d0976fa692"
     };
 
+    const VAPID_KEY = "j_lqz-M7dGuGLy0qwUKXNN5ZiCNBv9Cthup4L2KY-h8";
+
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    let messaging = null;
+
+    try {
+      messaging = getMessaging(app);
+    } catch(e) {
+      console.log("FCM Messaging Not Supported in this browser");
+    }
 
     let currentUser = null;
     let targetUser = null;
@@ -471,6 +481,7 @@
     let peerConnection = null;
     let incomingCallData = null;
     let ringtoneInterval = null;
+    let flashInterval = null;
     let audioCtx = null;
 
     let currentCallType = "video"; 
@@ -483,6 +494,89 @@
         { urls: 'stun:stun1.l.google.com:19302' }
       ]
     };
+
+    /* --- FCM Setup & Token Handling --- */
+    async function setupFCM(userID) {
+      if (!messaging) return;
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          const token = await getToken(messaging, { vapidKey: VAPID_KEY });
+          if (token) {
+            await updateDoc(doc(db, "users", userID), { fcmToken: token });
+          }
+        }
+      } catch (err) {
+        console.error("FCM Setup Error:", err);
+      }
+    }
+
+    if (messaging) {
+      onMessage(messaging, (payload) => {
+        triggerFlashForMessage();
+        if (payload.notification) {
+          showBannerNotification(payload.notification.title || 'Message', payload.notification.body || '');
+        }
+      });
+    }
+
+    /* --- Flashlight Controlling System --- */
+    async function triggerFlashForMessage() {
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        const track = stream.getVideoTracks()[0];
+        const imageCapture = new ImageCapture(track);
+        const capabilities = await imageCapture.getPhotoCapabilities();
+        
+        if (capabilities.fillLightMode && capabilities.fillLightMode.includes('flash')) {
+          await track.applyConstraints({ advanced: [{ torch: true }] });
+          setTimeout(async () => {
+            await track.applyConstraints({ advanced: [{ torch: false }] });
+            track.stop();
+          }, 300);
+        } else {
+          track.stop();
+        }
+      } catch (e) {
+        console.log("Flashlight API unavailable or permission denied:", e);
+      }
+    }
+
+    async function startFlashlightBlinking() {
+      stopFlashlightBlinking();
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        const track = stream.getVideoTracks()[0];
+        let state = false;
+
+        flashInterval = setInterval(async () => {
+          state = !state;
+          try {
+            await track.applyConstraints({ advanced: [{ torch: state }] });
+          } catch(e){}
+        }, 500);
+
+        window.currentFlashTrack = track;
+      } catch(e) {
+        console.log("Incoming Call Flash Error:", e);
+      }
+    }
+
+    function stopFlashlightBlinking() {
+      if (flashInterval) {
+        clearInterval(flashInterval);
+        flashInterval = null;
+      }
+      if (window.currentFlashTrack) {
+        try {
+          window.currentFlashTrack.applyConstraints({ advanced: [{ torch: false }] });
+          window.currentFlashTrack.stop();
+        } catch(e){}
+        window.currentFlashTrack = null;
+      }
+    }
 
     window.addEventListener("DOMContentLoaded", () => {
       const savedUser = localStorage.getItem("idchat_active_user");
@@ -545,13 +639,11 @@
       const localVideo = document.getElementById("localVideo");
 
       if (!isScreenSharing) {
-        // Safe Check for getDisplayMedia API
         if (!navigator.mediaDevices || typeof navigator.mediaDevices.getDisplayMedia !== 'function') {
           return alert("သင့် Browser / Device (Mobile Phone) တွင် Screen Share စနစ် အသုံးမပြုနိုင်ပါ သို့မဟုတ် ခွင့်မပြုပါ။ PC (Chrome/Edge) ဖြင့် စမ်းသပ်ကြည့်ပါ။");
         }
 
         try {
-          // Standard constraints safe for mobile & PC
           screenStream = await navigator.mediaDevices.getDisplayMedia({
             video: true,
             audio: false
@@ -659,6 +751,7 @@
         clearInterval(ringtoneInterval);
         ringtoneInterval = null;
       }
+      stopFlashlightBlinking();
     }
 
     function formatTime(timestamp) {
@@ -769,6 +862,7 @@
       document.getElementById("userNameDisplay").innerText = name;
       document.getElementById("authModal").style.display = "none";
       
+      setupFCM(userID);
       loadRecentContacts();
       listenForIncomingCalls();
       listenForBackgroundMessages();
@@ -841,6 +935,7 @@
             if (!initialLoad && latestMsg.senderID !== currentUser.userID) {
               unreadMap[c.username] = true;
               loadRecentContacts();
+              triggerFlashForMessage();
               if (!targetUser || targetUser.username !== c.username) {
                 showBannerNotification(c.username, latestMsg.type === 'image' ? '[📷 ဓာတ်ပုံ]' : latestMsg.content);
               }
@@ -908,7 +1003,7 @@
         return alert("ဓာတ်ပုံ ပမာဏ 1MB ထက် နည်းရပါမည်!");
       }
 
-       const reader = new FileReader();
+      const reader = new FileReader();
       reader.onload = async (event) => {
         const base64Img = event.target.result;
         await addDoc(collection(db, "chats", currentChatID, "messages"), {
@@ -1069,6 +1164,7 @@
             document.getElementById("callStatusText").innerText = `${data.callerName} (@${data.callerUsername}) ထံမှ ${callLabel} ဝင်လာပါသည်...`;
             document.getElementById("acceptCallBtn").style.display = "flex";
             playRingtone();
+            startFlashlightBlinking();
             listenForCallEnd(currentUser.userID);
           }
         }
