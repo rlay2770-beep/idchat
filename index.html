@@ -908,7 +908,7 @@
         return alert("ဓာတ်ပုံ ပမာဏ 1MB ထက် နည်းရပါမည်!");
       }
 
-      const reader = new FileReader();
+       const reader = new FileReader();
       reader.onload = async (event) => {
         const base64Img = event.target.result;
         await addDoc(collection(db, "chats", currentChatID, "messages"), {
