@@ -473,7 +473,7 @@
     let isMicMuted = false;
     let isSpeakerOn = false;
 
-    const rtcConfig = {
+   const rtcConfig = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' }
@@ -532,14 +532,19 @@
       input.focus();
     };
 
-    /* Screen Sharing Logic */
+    /* Fully Safe & Updated Screen Sharing Logic */
     window.toggleScreenShare = async () => {
       window.initAudioContext();
       const callScreenBtn = document.getElementById("callScreenShareBtn");
       const tabShareBtn = document.getElementById("tabShareBtn");
       const tabScreenVideo = document.getElementById("tabScreenVideo");
+      const localVideo = document.getElementById("localVideo");
 
       if (!isScreenSharing) {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+          return alert("သင့် Browser သည် Screen Share ကို ထောက်ပံ့မှုမရှိပါ (PC Chrome/Edge ကို သုံးပါ)");
+        }
+
         try {
           screenStream = await navigator.mediaDevices.getDisplayMedia({
             video: { cursor: "always" },
@@ -548,22 +553,28 @@
 
           const screenTrack = screenStream.getVideoTracks()[0];
 
+          // WebRTC Peer Connection ရှိပါက Video Track ကို အစားထိုးခြင်း
           if (peerConnection) {
             const senders = peerConnection.getSenders();
             const videoSender = senders.find(s => s.track && s.track.kind === 'video');
 
             if (videoSender) {
-              videoSender.replaceTrack(screenTrack);
+              await videoSender.replaceTrack(screenTrack);
             } else {
               peerConnection.addTrack(screenTrack, screenStream);
             }
           }
 
+          // Local Preview များသို့ Screen Track အစားထိုးခြင်း
           if (tabScreenVideo) {
             tabScreenVideo.srcObject = screenStream;
             tabScreenVideo.style.display = "block";
           }
+          if (localVideo) {
+            localVideo.srcObject = screenStream;
+          }
 
+          // User မှ Stop Sharing ခလုတ် နှိပ်လိုက်ပါက မူရင်း Camera ပြန်ပြောင်းပေးခြင်း
           screenTrack.onended = () => {
             window.stopScreenSharing();
           };
@@ -574,17 +585,20 @@
 
         } catch (error) {
           console.error("Screen Share Error:", error);
-          alert("Screen Share ပြုလုပ်၍ မရပါ သို့မဟုတ် ပယ်ဖျက်လိုက်ပါသည်။");
+          if (error.name !== "NotAllowedError") {
+            alert("Screen Share ပြုလုပ်၍ မရပါ သို့မဟုတ် မအောင်မြင်ပါ။");
+          }
         }
       } else {
         window.stopScreenSharing();
       }
     };
 
-    window.stopScreenSharing = () => {
+    window.stopScreenSharing = async () => {
       const callScreenBtn = document.getElementById("callScreenShareBtn");
       const tabShareBtn = document.getElementById("tabShareBtn");
       const tabScreenVideo = document.getElementById("tabScreenVideo");
+      const localVideo = document.getElementById("localVideo");
 
       if (screenStream) {
         screenStream.getTracks().forEach(track => track.stop());
@@ -596,8 +610,14 @@
         if (videoTrack) {
           const senders = peerConnection.getSenders();
           const videoSender = senders.find(s => s.track && s.track.kind === 'video');
-          if (videoSender) videoSender.replaceTrack(videoTrack);
+          if (videoSender) {
+            await videoSender.replaceTrack(videoTrack);
+          }
         }
+      }
+
+      if (localVideo && localStream) {
+        localVideo.srcObject = localStream;
       }
 
       if (tabScreenVideo) {
@@ -904,455 +924,6 @@
         audioUI.style.display = "none";
       }
     }
-
-   const rtcConfig = {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-      ]
-    };
-
-    window.addEventListener("DOMContentLoaded", () => {
-      const savedUser = localStorage.getItem("idchat_active_user");
-      if (savedUser) {
-        try {
-          const userObj = JSON.parse(savedUser);
-          loginSuccess(userObj.userID, userObj.name, userObj.username, false);
-        } catch(e) {
-          console.error("Auto Login Error", e);
-        }
-      }
-    });
-
-    window.initAudioContext = () => {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-    };
-
-    window.switchTab = (tabId, element) => {
-      document.querySelectorAll('.content-section').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
-      document.getElementById(tabId).classList.add('active');
-      element.classList.add('active');
-    };
-
-    window.autoResize = (textarea) => {
-      textarea.style.height = '42px';
-      if (textarea.scrollHeight > 42) {
-        textarea.style.height = (textarea.scrollHeight < 120 ? textarea.scrollHeight : 120) + 'px';
-      }
-      const clearBtn = document.getElementById('clearBtn');
-      clearBtn.style.display = textarea.value.length > 0 ? 'block' : 'none';
-    };
-
-    window.handleKeyDown = (event) => {
-      if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        window.sendTextMessage();
-      }
-    };
-
-    window.clearInput = () => {
-      const input = document.getElementById('msgInput');
-      input.value = '';
-      input.style.height = '42px';
-      document.getElementById('clearBtn').style.display = 'none';
-      input.focus();
-    };
-
-    /* Screen Sharing Logic */
-    window.toggleScreenShare = async () => {
-      window.initAudioContext();
-      const callScreenBtn = document.getElementById("callScreenShareBtn");
-      const tabShareBtn = document.getElementById("tabShareBtn");
-      const tabScreenVideo = document.getElementById("tabScreenVideo");
-
-      if (!isScreenSharing) {
-        try {
-          screenStream = await navigator.mediaDevices.getDisplayMedia({
-            video: { cursor: "always" },
-            audio: false
-          });
-
-          const screenTrack = screenStream.getVideoTracks()[0];
-
-          if (peerConnection) {
-            const senders = peerConnection.getSenders();
-            const videoSender = senders.find(s => s.track && s.track.kind === 'video');
-
-            if (videoSender) {
-              videoSender.replaceTrack(screenTrack);
-            } else {
-              peerConnection.addTrack(screenTrack, screenStream);
-            }
-          }
-
-          if (tabScreenVideo) {
-            tabScreenVideo.srcObject = screenStream;
-            tabScreenVideo.style.display = "block";
-          }
-
-          screenTrack.onended = () => {
-            window.stopScreenSharing();
-          };
-
-          isScreenSharing = true;
-          if (callScreenBtn) callScreenBtn.classList.add("active");
-          if (tabShareBtn) tabShareBtn.innerHTML = "<span>⏹️ Screen Share ရပ်တန့်မည်</span>";
-
-        } catch (error) {
-          console.error("Screen Share Error:", error);
-          alert("Screen Share ပြုလုပ်၍ မရပါ သို့မဟုတ် ပယ်ဖျက်လိုက်ပါသည်။");
-        }
-      } else {
-        window.stopScreenSharing();
-      }
-    };
-
-    window.stopScreenSharing = () => {
-      const callScreenBtn = document.getElementById("callScreenShareBtn");
-      const tabShareBtn = document.getElementById("tabShareBtn");
-      const tabScreenVideo = document.getElementById("tabScreenVideo");
-
-      if (screenStream) {
-        screenStream.getTracks().forEach(track => track.stop());
-        screenStream = null;
-      }
-
-      if (peerConnection && localStream) {
-        const videoTrack = localStream.getVideoTracks()[0];
-        if (videoTrack) {
-          const senders = peerConnection.getSenders();
-          const videoSender = senders.find(s => s.track && s.track.kind === 'video');
-          if (videoSender) videoSender.replaceTrack(videoTrack);
-        }
-      }
-
-      if (tabScreenVideo) {
-        tabScreenVideo.srcObject = null;
-        tabScreenVideo.style.display = "none";
-      }
-
-      isScreenSharing = false;
-      if (callScreenBtn) callScreenBtn.classList.remove("active");
-      if (tabShareBtn) tabShareBtn.innerHTML = "<span>🖥️ Screen Share စတင်မည်</span>";
-    };
-
-    /* Audio Sound Handling */
-    function playRingtone() {
-      try {
-        window.initAudioContext();
-        stopRingtone();
-        ringtoneInterval = setInterval(() => {
-          if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-          if (audioCtx) {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(440, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.8);
-          }
-        }, 1500);
-      } catch (e) { console.log(e); }
-    }
-
-    function stopRingtone() {
-      if (ringtoneInterval) {
-        clearInterval(ringtoneInterval);
-        ringtoneInterval = null;
-      }
-    }
-
-    function formatTime(timestamp) {
-      if (!timestamp) return "";
-      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-
-    function showBannerNotification(senderUsername, text) {
-      bannerTargetUser = senderUsername;
-      const banner = document.getElementById("topBanner");
-      document.getElementById("bannerTitle").innerText = `💬 @${senderUsername}`;
-      document.getElementById("bannerText").innerText = text;
-      
-      banner.classList.add("show");
-
-      if (bannerTimeout) clearTimeout(bannerTimeout);
-      const displayDuration = Math.min(Math.max(text.length * 100, 3000), 6000);
-
-      bannerTimeout = setTimeout(() => {
-        banner.classList.remove("show");
-      }, displayDuration);
-    }
-
-    window.clickBanner = () => {
-      if (bannerTimeout) clearTimeout(bannerTimeout);
-      document.getElementById("topBanner").classList.remove("show");
-      if (bannerTargetUser) {
-        document.getElementById("targetUsernameInput").value = bannerTargetUser;
-        window.connectChat(bannerTargetUser);
-      }
-    };
-
-    async function generateUniqueID() {
-      let isUnique = false, newID = "";
-      while (!isUnique) {
-        newID = Math.floor(100000 + Math.random() * 900000).toString();
-        const docSnap = await getDoc(doc(db, "users", newID));
-        if (!docSnap.exists()) isUnique = true;
-      }
-      return newID;
-    }
-
-        window.handleRegister = async () => {
-      window.initAudioContext();
-      const name = document.getElementById("regName").value.trim();
-      const rawUsername = document.getElementById("regUsername").value.trim().replace("@","");
-      const username = rawUsername.toLowerCase();
-      const pass = document.getElementById("regPass").value.trim();
-      
-      if (!name || !username || !pass) return alert("အချက်အလက်များကို ပြည့်စုံစွာ ရိုက်ထည့်ပါ!");
-
-      try {
-        const uSnap = await getDoc(doc(db, "usernames", username));
-        if (uSnap.exists()) return alert("ဤ Username ယူထားပြီးဖြစ်ပါသည်။ အခြားနာမည်ပြောင်းပါ!");
-
-        const userID = await generateUniqueID();
-        
-        // Users collection နဲ့ Usernames collection နှစ်ခုလုံးသို့ သေချာစွာ သိမ်းဆည်းခြင်း
-        await setDoc(doc(db, "users", userID), { userID, name, username, password: pass, createdAt: serverTimestamp() });
-        await setDoc(doc(db, "usernames", username), { userID });
-        
-        alert(`အကောင့် အောင်မြင်စွာ ဖန်တီးပြီးပါပြီ!\nသင့်၏ Username: @${username}`);
-        loginSuccess(userID, name, username);
-      } catch (error) {
-        console.error("Register Error:", error);
-        alert("အကောင့်ဖွင့်ရာတွင် အမှားအယွင်း ရှိနေပါသည်။");
-      }
-    };
-
-    window.handleLogin = async () => {
-      window.initAudioContext();
-      const username = document.getElementById("loginUsername").value.trim().toLowerCase().replace("@","");
-      if (!username) return alert("Username ရိုက်ထည့်ပါ!");
-      
-      try {
-        const uSnap = await getDoc(doc(db, "usernames", username));
-        if (uSnap.exists()) {
-          const userID = uSnap.data().userID;
-          const userDoc = await getDoc(doc(db, "users", userID));
-          
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            loginSuccess(userID, userData.name, username);
-          } else {
-            alert("အကောင့် အချက်အလက် ရှာမတွေ့ပါ။");
-          }
-        } else {
-          alert("ဤ Username ဖြင့် အကောင့်မရှိပါ။ Username သေချာစစ်ဆေးပါ သို့မဟုတ် အကောင့်အသစ် ဖွင့်ပါ။");
-        }
-      } catch (error) {
-        console.error("Login Error:", error);
-        alert("Login ဝင်ရာတွင် အမှားအယွင်း ရှိနေပါသည်။ (Network သို့မဟုတ် Firebase Rule ကို စစ်ဆေးပါ)");
-      }
-    };
-                                       
-
-    function loginSuccess(userID, name, username, saveToStorage = true) {
-      currentUser = { userID, name, username };
-      
-      if (saveToStorage) {
-        localStorage.setItem("idchat_active_user", JSON.stringify(currentUser));
-      }
-
-      document.getElementById("myUsernameDisplay").innerText = "@" + username;
-      
-      const userCard = document.getElementById("userNameDisplay").parentElement;
-      if (!document.getElementById("logoutBtn")) {
-        const logoutBtn = document.createElement("span");
-        logoutBtn.id = "logoutBtn";
-        logoutBtn.style.cssText = "color: var(--danger); cursor: pointer; margin-left: 8px; font-size: 11px; text-decoration: underline;";
-        logoutBtn.innerText = "[ထွက်မည်]";
-        logoutBtn.onclick = window.handleLogout;
-        userCard.appendChild(logoutBtn);
-      }
-      
-      document.getElementById("userNameDisplay").innerText = name;
-      document.getElementById("authModal").style.display = "none";
-      
-      loadRecentContacts();
-      listenForIncomingCalls();
-      listenForBackgroundMessages();
-    }
-
-    window.handleLogout = () => {
-      if (confirm("အကောင့်ထဲမှ ထွက်ရန် သေချာပါသလား?")) {
-        localStorage.removeItem("idchat_active_user");
-        location.reload();
-      }
-    };
-
-    window.connectChat = async (targetUsername = null) => {
-      const uname = targetUsername || document.getElementById("targetUsernameInput").value.trim().toLowerCase().replace("@","");
-      if (!uname || (currentUser && uname === currentUser.username)) return alert("မှန်ကန်သော Username ရိုက်ထည့်ပါ!");
-
-      const uSnap = await getDoc(doc(db, "usernames", uname));
-      if (!uSnap.exists()) return alert("ဤ Username ဖြင့် အသုံးပြုသူ ရှာမတွေ့ပါ!");
-
-      const targetID = uSnap.data().userID;
-      const tUserDoc = await getDoc(doc(db, "users", targetID));
-      
-      targetUser = { userID: targetID, name: tUserDoc.data().name, username: uname };
-      currentChatID = [currentUser.userID, targetID].sort().join("_");
-      
-      if (unreadMap[uname]) {
-        delete unreadMap[uname];
-      }
-
-      saveRecentContact(targetUser);
-      loadMessages();
-    };
-
-    function saveRecentContact(user) {
-      let contacts = JSON.parse(localStorage.getItem("recent_contacts") || "[]");
-      if (!contacts.some(c => c.username === user.username)) {
-        contacts.push(user);
-        localStorage.setItem("recent_contacts", JSON.stringify(contacts));
-      }
-      loadRecentContacts();
-    }
-
-    function loadRecentContacts() {
-      let contacts = JSON.parse(localStorage.getItem("recent_contacts") || "[]");
-      const container = document.getElementById("recentContacts");
-      container.innerHTML = '<span style="font-size: 12px; color: var(--text-muted); align-self: center;">အဆက်အသွယ်များ: </span>';
-      contacts.forEach(c => {
-        const chip = document.createElement("div");
-        chip.className = "contact-chip";
-        chip.innerHTML = `@${c.username}` + (unreadMap[c.username] ? ' <span class="unread-dot"></span>' : '');
-        chip.onclick = () => {
-          document.getElementById("targetUsernameInput").value = c.username;
-          window.connectChat(c.username);
-        };
-        container.appendChild(chip);
-      });
-    }
-
-    function listenForBackgroundMessages() {
-      bgListeners.forEach(unsub => unsub());
-      bgListeners = [];
-      let contacts = JSON.parse(localStorage.getItem("recent_contacts") || "[]");
-      contacts.forEach(c => {
-        const chatID = [currentUser.userID, c.userID].sort().join("_");
-        const q = query(collection(db, "chats", chatID, "messages"), orderBy("timestamp", "desc"));
-        let initialLoad = true;
-        const unsub = onSnapshot(q, (snapshot) => {
-          if (!snapshot.empty) {
-            const latestMsg = snapshot.docs[0].data();
-            if (!initialLoad && latestMsg.senderID !== currentUser.userID) {
-              unreadMap[c.username] = true;
-              loadRecentContacts();
-              if (!targetUser || targetUser.username !== c.username) {
-                showBannerNotification(c.username, latestMsg.content);
-              }
-            }
-          }
-          initialLoad = false;
-        });
-        bgListeners.push(unsub);
-      });
-    }
-
-    function loadMessages() {
-      if (unsubscribeChat) unsubscribeChat();
-      const q = query(collection(db, "chats", currentChatID, "messages"), orderBy("timestamp", "asc"));
-      
-      unsubscribeChat = onSnapshot(q, (snapshot) => {
-        const chatArea = document.getElementById("chatArea");
-        chatArea.innerHTML = "";
-        snapshot.forEach((doc) => {
-          const msg = doc.data();
-          const msgDiv = document.createElement("div");
-          const timeStr = formatTime(msg.timestamp);
-
-          if (msg.type === "call_log") {
-            msgDiv.className = "message call-log";
-            const icon = msg.callType === "audio" ? "📞" : "📹";
-            msgDiv.innerText = `${icon} ${msg.content} (${timeStr})`;
-          } else {
-            const isMe = msg.senderID === currentUser.userID;
-            msgDiv.className = `message ${isMe ? 'sent' : 'received'}`;
-            msgDiv.innerHTML = `<div>${msg.content}</div><div class="msg-time">${timeStr}</div>`;
-          }
-
-          chatArea.appendChild(msgDiv);
-        });
-        chatArea.scrollTop = chatArea.scrollHeight;
-      });
-    }
-
-    window.sendTextMessage = async () => {
-      const input = document.getElementById("msgInput");
-      const text = input.value.trim();
-      if (!text || !currentChatID) return alert("သူငယ်ချင်း Username အရင် ရိုက်ထည့်ပါ!");
-      
-      await addDoc(collection(db, "chats", currentChatID, "messages"), {
-        senderID: currentUser.userID,
-        type: "text",
-        content: text,
-        timestamp: serverTimestamp()
-      });
-      
-      window.clearInput();
-    };
-
-    async function logCallToChat(targetID, callStatusText, callType = "video") {
-      if (currentUser && targetID) {
-        const targetChatID = [currentUser.userID, targetID].sort().join("_");
-        
-        await addDoc(collection(db, "chats", targetChatID, "messages"), {
-          senderID: currentUser.userID,
-          type: "call_log",
-          callType: callType,
-          content: callStatusText,
-          timestamp: serverTimestamp()
-        }).catch((err) => console.error("Call Log Error:", err));
-      }
-    }
-
-    function setupCallUI(callType, callerName = "") {
-      const localVideo = document.getElementById("localVideo");
-      const remoteVideo = document.getElementById("remoteVideo");
-      const audioUI = document.getElementById("audioCallUI");
-
-      if (callType === "audio") {
-        localVideo.style.display = "none";
-        remoteVideo.style.display = "none";
-        audioUI.style.display = "flex";
-        document.getElementById("avatarText").innerText = callerName ? callerName.charAt(0).toUpperCase() : "📞";
-        document.getElementById("audioCallerName").innerText = callerName || "အသံဖြင့် ဖုန်းပြောဆိုနေသည်";
-      } else {
-        localVideo.style.display = "block";
-        remoteVideo.style.display = "block";
-        audioUI.style.display = "none";
-      }
-    }
-
-    /* Controls & WebRTC Calls */
-    window.setIncomingVolume = (val) => {
-      const remoteAudio = document.getElementById("remoteAudio");
-      const remoteVideo = document.getElementById("remoteVideo");
-      if (remoteAudio) remoteAudio.volume = val;
-      if (remoteVideo) remoteVideo.volume = val;
-    };
 
     /* Controls & WebRTC Calls */
     window.setIncomingVolume = (val) => {
