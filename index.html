@@ -339,7 +339,7 @@
     }
     .group-video-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
       gap: 10px;
       width: 100%;
       height: 68%;
@@ -347,16 +347,18 @@
       border-radius: 16px;
       padding: 10px;
       overflow-y: auto;
+      align-content: start;
     }
     .group-video-card {
       position: relative;
       background: #1e293b;
-      border-radius: 10px;
+      border-radius: 12px;
       overflow: hidden;
       display: flex;
       justify-content: center;
       align-items: center;
-      min-height: 120px;
+      aspect-ratio: 3/4;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
     }
     .group-video-card video {
       width: 100%;
@@ -368,10 +370,12 @@
       bottom: 6px;
       left: 6px;
       background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
       color: white;
-      padding: 2px 8px;
+      padding: 3px 8px;
       border-radius: 8px;
-      font-size: 10px;
+      font-size: 11px;
+      font-weight: 500;
     }
   </style>
 </head>
@@ -484,7 +488,7 @@
         <button class="group-card-btn" onclick="selectGroup('friends_group', this)">🎉 Friends Corner</button>
       </div>
 
-       <!-- Friends Corner တွင်သာ ပေါ်မည့် Group Meeting Control Bar -->
+      <!-- Friends Corner တွင်သာ ပေါ်မည့် Group Meeting Control Bar -->
       <div id="friendsGroupCallBar" style="display: none; padding: 8px 12px; background: #e0f2fe; border-bottom: 1px solid var(--border); text-align: right;">
         <button onclick="startGroupCall('audio')" style="background: #0284c7; color: white; border: none; padding: 6px 12px; border-radius: 16px; font-size: 12px; font-weight: bold; cursor: pointer; margin-right: 6px;">📞 Group Audio Live</button>
         <button onclick="startGroupCall('video')" style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 16px; font-size: 12px; font-weight: bold; cursor: pointer;">📹 Group Video Meeting</button>
@@ -561,6 +565,8 @@
     let isGroupCall = false;
     let groupPeerConnections = {};
     let unsubscribeGroupCall = null;
+    let groupSignalsUnsubscribe = null;
+    let groupParticipantsUnsubscribe = null;
 
     const rtcConfig = {
       iceServers: [
@@ -1318,6 +1324,10 @@
         if (currentUser) {
           deleteDoc(doc(db, "group_calls", "friends_group", "participants", currentUser.userID)).catch(() => {});
         }
+        
+        if (groupSignalsUnsubscribe) { groupSignalsUnsubscribe(); groupSignalsUnsubscribe = null; }
+        if (groupParticipantsUnsubscribe) { groupParticipantsUnsubscribe(); groupParticipantsUnsubscribe = null; }
+
         Object.keys(groupPeerConnections).forEach(id => removeGroupPeer(id));
         groupPeerConnections = {};
         
@@ -1355,7 +1365,7 @@
     }
 
     /* ----------------------------------------------------
-       FRIENDS CORNER GROUP LIVE CALL / MEETING LOGIC
+       FRIENDS CORNER GROUP LIVE CALL / MEETING LOGIC (FIXED)
     ---------------------------------------------------- */
 
     function listenForGroupCallBanner() {
@@ -1428,8 +1438,11 @@
       container.className = "group-video-grid";
       container.innerHTML = "";
 
+      // Add Local Video Card
       const localCard = document.createElement("div");
       localCard.className = "group-video-card";
+      localCard.id = `card_${currentUser.userID}`;
+
       const localVid = document.createElement("video");
       localVid.autoplay = true;
       localVid.playsInline = true;
@@ -1445,7 +1458,7 @@
       container.appendChild(localCard);
     }
 
-     async function joinGroupCallSession() {
+    async function joinGroupCallSession() {
       const myRef = doc(db, "group_calls", "friends_group", "participants", currentUser.userID);
       await setDoc(myRef, {
         userID: currentUser.userID,
@@ -1454,21 +1467,9 @@
         joinedAt: serverTimestamp()
       });
 
-      onSnapshot(collection(db, "group_calls", "friends_group", "participants"), (snapshot) => {
-        snapshot.docChanges().forEach(async (change) => {
-          const pData = change.doc.data();
-          if (!pData || pData.userID === currentUser.userID) return;
-
-          if (change.type === "added") {
-            connectToGroupPeer(pData.userID, pData.username, true);
-          } else if (change.type === "removed") {
-            removeGroupPeer(pData.userID);
-          }
-        });
-      });
-
+      // Listen for incoming WebRTC signals
       const signalCol = collection(db, "group_calls", "friends_group", "signals", currentUser.userID, "incoming");
-      onSnapshot(signalCol, async (snapshot) => {
+      groupSignalsUnsubscribe = onSnapshot(signalCol, async (snapshot) => {
         snapshot.docChanges().forEach(async (change) => {
           if (change.type === "added") {
             const data = change.doc.data();
@@ -1483,6 +1484,7 @@
               await addDoc(collection(db, "group_calls", "friends_group", "signals", fromID, "incoming"), {
                 type: "answer",
                 from: currentUser.userID,
+                fromUsername: currentUser.username,
                 answer: { type: answer.type, sdp: answer.sdp }
               });
             } else if (data.type === "answer") {
@@ -1500,6 +1502,20 @@
           }
         });
       });
+
+      // Listen for group participants
+      groupParticipantsUnsubscribe = onSnapshot(collection(db, "group_calls", "friends_group", "participants"), (snapshot) => {
+        snapshot.docChanges().forEach(async (change) => {
+          const pData = change.doc.data();
+          if (!pData || pData.userID === currentUser.userID) return;
+
+          if (change.type === "added") {
+            connectToGroupPeer(pData.userID, pData.username, true);
+          } else if (change.type === "removed") {
+            removeGroupPeer(pData.userID);
+          }
+        });
+      });
     }
 
     function connectToGroupPeer(targetID, targetUsername, isInitiator) {
@@ -1508,22 +1524,26 @@
       const pc = new RTCPeerConnection(rtcConfig);
       groupPeerConnections[targetID] = pc;
 
+      // Add local audio/video tracks to peer
       if (localStream) {
         localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
       }
 
+      // Handle receiving remote tracks (CRITICAL FIX FOR REMOTE VIDEO DISPLAY)
       pc.ontrack = (event) => {
+        window.initAudioContext();
         let card = document.getElementById(`card_${targetID}`);
+        let remoteVid = card ? card.querySelector("video") : null;
+
         if (!card) {
           const container = document.getElementById("videoContainer");
           card = document.createElement("div");
           card.id = `card_${targetID}`;
           card.className = "group-video-card";
 
-          const remoteVid = document.createElement("video");
+          remoteVid = document.createElement("video");
           remoteVid.autoplay = true;
           remoteVid.playsInline = true;
-          remoteVid.srcObject = event.streams[0];
 
           const label = document.createElement("span");
           label.className = "user-tag";
@@ -1533,6 +1553,10 @@
           card.appendChild(label);
           container.appendChild(card);
         }
+
+        if (remoteVid && event.streams[0]) {
+          remoteVid.srcObject = event.streams[0];
+        }
       };
 
       pc.onicecandidate = (event) => {
@@ -1540,6 +1564,7 @@
           addDoc(collection(db, "group_calls", "friends_group", "signals", targetID, "incoming"), {
             type: "candidate",
             from: currentUser.userID,
+            fromUsername: currentUser.username,
             candidate: event.candidate.toJSON()
           }).catch(() => {});
         }
@@ -1570,4 +1595,5 @@
     }
   </script>
 </body>
-</html
+</html>
+   
