@@ -377,6 +377,26 @@
       font-size: 11px;
       font-weight: 500;
     }
+    .group-audio-card {
+      background: #334155;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .group-audio-avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: #0284c7;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body onclick="initAudioContext()" ontouchstart="initAudioContext()">
@@ -488,7 +508,7 @@
         <button class="group-card-btn" onclick="selectGroup('friends_group', this)">🎉 Friends Corner</button>
       </div>
 
-      <!-- Friends Corner တွင်သာ ပေါ်မည့် Group Meeting Control Bar -->
+      <!-- Friends Corner Group Meeting Control Bar -->
       <div id="friendsGroupCallBar" style="display: none; padding: 8px 12px; background: #e0f2fe; border-bottom: 1px solid var(--border); text-align: right;">
         <button onclick="startGroupCall('audio')" style="background: #0284c7; color: white; border: none; padding: 6px 12px; border-radius: 16px; font-size: 12px; font-weight: bold; cursor: pointer; margin-right: 6px;">📞 Group Audio Live</button>
         <button onclick="startGroupCall('video')" style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 16px; font-size: 12px; font-weight: bold; cursor: pointer;">📹 Group Video Meeting</button>
@@ -564,14 +584,26 @@
     // Group Call Specific Variables
     let isGroupCall = false;
     let groupPeerConnections = {};
+    let pendingIceCandidates = {}; // Candidate Queue System
     let unsubscribeGroupCall = null;
     let groupSignalsUnsubscribe = null;
     let groupParticipantsUnsubscribe = null;
 
+    // STUN + TURN Server Configuration (လိုင်းချိတ်ဆက်မှု ၁၀၀% ပွင့်စေရန်)
     const rtcConfig = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
+        { urls: 'stun:stun1.l.google.com:19302' },
+        {
+          urls: "turn:openrelay.metered.ca:80",
+          username: "openrelay",
+          credential: "openrelay"
+        },
+        {
+          urls: "turn:openrelay.metered.ca:443",
+          username: "openrelay",
+          credential: "openrelay"
+        }
       ]
     };
 
@@ -581,7 +613,7 @@
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
           const token = await getToken(messaging, { vapidKey: VAPID_KEY });
-          if (token) await updateDoc(doc(db, "users", userID), { fcmToken: token });
+          if (token) await updateDoc(doc(doc(db, "users", userID)), { fcmToken: token });
         }
       } catch (err) {}
     }
@@ -1330,6 +1362,7 @@
 
         Object.keys(groupPeerConnections).forEach(id => removeGroupPeer(id));
         groupPeerConnections = {};
+        pendingIceCandidates = {};
         
         const container = document.getElementById("videoContainer");
         container.className = "video-container";
@@ -1381,7 +1414,7 @@
             banner.className = "group-call-banner";
             banner.innerHTML = `
               <span>🎥 Friends Corner တွင် Group Meeting ပြုလုပ်နေပါသည်</span>
-              <button onclick="joinGroupCall()">Join Meeting</button>
+              <button onclick="joinGroupCall('video')">Join Meeting</button>
             `;
             groupChatArea.insertBefore(banner, groupChatArea.firstChild);
           }
@@ -1409,19 +1442,18 @@
       await joinGroupCallSession();
     };
 
-    window.joinGroupCall = async () => {
+    window.joinGroupCall = async (type = "video") => {
       window.initAudioContext();
       isGroupCall = true;
-      currentCallType = "video";
+      currentCallType = type;
 
       try {
-        localStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-        });
+        const audioOptions = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+        localStream = await navigator.mediaDevices.getUserMedia(
+          type === "audio" ? { video: false, audio: audioOptions } : { video: true, audio: audioOptions }
+        );
       } catch (e) {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
-        currentCallType = "audio";
+        return alert("ကင်မရာ/မိုက်ခရိုဖုန်း ဖွင့်မရပါ။");
       }
 
       setupGroupCallUI();
@@ -1431,29 +1463,36 @@
     function setupGroupCallUI() {
       const overlay = document.getElementById("videoCallOverlay");
       overlay.style.display = "flex";
-      document.getElementById("callStatusText").innerText = "🎉 Friends Corner Group Meeting";
+      document.getElementById("callStatusText").innerText = currentCallType === "audio" ? "📞 Friends Corner Audio Live" : "🎉 Friends Corner Group Meeting";
       document.getElementById("acceptCallBtn").style.display = "none";
 
       const container = document.getElementById("videoContainer");
       container.className = "group-video-grid";
       container.innerHTML = "";
 
-      // Add Local Video Card
+      // Add Local User Card
       const localCard = document.createElement("div");
-      localCard.className = "group-video-card";
+      localCard.className = currentCallType === "audio" ? "group-video-card group-audio-card" : "group-video-card";
       localCard.id = `card_${currentUser.userID}`;
 
-      const localVid = document.createElement("video");
-      localVid.autoplay = true;
-      localVid.playsInline = true;
-      localVid.muted = true;
-      localVid.srcObject = localStream;
-      
+      if (currentCallType === "video") {
+        const localVid = document.createElement("video");
+        localVid.autoplay = true;
+        localVid.playsInline = true;
+        localVid.muted = true;
+        localVid.srcObject = localStream;
+        localCard.appendChild(localVid);
+      } else {
+        const avatar = document.createElement("div");
+        avatar.className = "group-audio-avatar";
+        avatar.innerText = currentUser.username.charAt(0).toUpperCase();
+        localCard.appendChild(avatar);
+      }
+
       const label = document.createElement("span");
       label.className = "user-tag";
       label.innerText = `သင် (@${currentUser.username})`;
 
-      localCard.appendChild(localVid);
       localCard.appendChild(label);
       container.appendChild(localCard);
     }
@@ -1464,6 +1503,7 @@
         userID: currentUser.userID,
         username: currentUser.username,
         name: currentUser.name,
+        callType: currentCallType,
         joinedAt: serverTimestamp()
       });
 
@@ -1478,6 +1518,15 @@
             if (data.type === "offer") {
               const pc = connectToGroupPeer(fromID, data.fromUsername, false);
               await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+              
+              // Process queued ICE candidates
+              if (pendingIceCandidates[fromID]) {
+                for (const candidate of pendingIceCandidates[fromID]) {
+                  await pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
+                }
+                delete pendingIceCandidates[fromID];
+              }
+
               const answer = await pc.createAnswer();
               await pc.setLocalDescription(answer);
 
@@ -1491,11 +1540,23 @@
               const pc = groupPeerConnections[fromID];
               if (pc && !pc.currentRemoteDescription) {
                 await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+                
+                // Process queued ICE candidates
+                if (pendingIceCandidates[fromID]) {
+                  for (const candidate of pendingIceCandidates[fromID]) {
+                    await pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
+                  }
+                  delete pendingIceCandidates[fromID];
+                }
               }
             } else if (data.type === "candidate") {
               const pc = groupPeerConnections[fromID];
-              if (pc) {
+              if (pc && pc.remoteDescription) {
                 await pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(() => {});
+              } else {
+                // Queue the candidate if RemoteDescription is not set yet
+                if (!pendingIceCandidates[fromID]) pendingIceCandidates[fromID] = [];
+                pendingIceCandidates[fromID].push(data.candidate);
               }
             }
             await deleteDoc(change.doc.ref);
@@ -1529,33 +1590,48 @@
         localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
       }
 
-      // Handle receiving remote tracks (CRITICAL FIX FOR REMOTE VIDEO DISPLAY)
+      // Handle receiving remote tracks
       pc.ontrack = (event) => {
         window.initAudioContext();
         let card = document.getElementById(`card_${targetID}`);
-        let remoteVid = card ? card.querySelector("video") : null;
 
         if (!card) {
           const container = document.getElementById("videoContainer");
           card = document.createElement("div");
           card.id = `card_${targetID}`;
-          card.className = "group-video-card";
+          card.className = currentCallType === "audio" ? "group-video-card group-audio-card" : "group-video-card";
 
-          remoteVid = document.createElement("video");
-          remoteVid.autoplay = true;
-          remoteVid.playsInline = true;
+          if (currentCallType === "video") {
+            const remoteVid = document.createElement("video");
+            remoteVid.autoplay = true;
+            remoteVid.playsInline = true;
+            card.appendChild(remoteVid);
+          } else {
+            const avatar = document.createElement("div");
+            avatar.className = "group-audio-avatar";
+            avatar.innerText = targetUsername.charAt(0).toUpperCase();
+            card.appendChild(avatar);
+
+            const remoteAud = document.createElement("audio");
+            remoteAud.autoplay = true;
+            remoteAud.id = `aud_${targetID}`;
+            card.appendChild(remoteAud);
+          }
 
           const label = document.createElement("span");
           label.className = "user-tag";
           label.innerText = `@${targetUsername}`;
 
-          card.appendChild(remoteVid);
           card.appendChild(label);
           container.appendChild(card);
         }
 
-        if (remoteVid && event.streams[0]) {
-          remoteVid.srcObject = event.streams[0];
+        if (currentCallType === "video") {
+          const remoteVid = card.querySelector("video");
+          if (remoteVid && event.streams[0]) remoteVid.srcObject = event.streams[0];
+        } else {
+          const remoteAud = card.querySelector("audio");
+          if (remoteAud && event.streams[0]) remoteAud.srcObject = event.streams[0];
         }
       };
 
@@ -1590,10 +1666,11 @@
         groupPeerConnections[userID].close();
         delete groupPeerConnections[userID];
       }
+      if (pendingIceCandidates[userID]) delete pendingIceCandidates[userID];
+
       const card = document.getElementById(`card_${userID}`);
       if (card) card.remove();
     }
   </script>
 </body>
 </html>
-   
