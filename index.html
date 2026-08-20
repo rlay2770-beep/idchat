@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IDChat - Professional WebRTC & Messaging System</title>
+  <title>IDChat - Professional WebRTC & Group Messaging</title>
   <style>
     :root {
       --primary: #0084ff;
@@ -209,6 +209,7 @@
     .message.received { background: white; color: var(--text-main); align-self: flex-start; border-bottom-left-radius: 4px; border: 1px solid var(--border); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
     .message.call-log { background: #e2e8f0; color: #475569; align-self: center; font-size: 12px; padding: 6px 14px; border-radius: 12px; text-align: center; border: none; }
     .message img { max-width: 100%; border-radius: 8px; margin-top: 4px; }
+    .msg-sender { font-size: 11px; font-weight: bold; margin-bottom: 2px; color: #0284c7; }
     .msg-time { font-size: 10px; opacity: 0.7; align-self: flex-end; margin-top: 4px; }
 
     .input-area { padding: 12px; border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: flex-end; background: white; }
@@ -282,8 +283,6 @@
     .btn-toggle-mic, .btn-toggle-speaker { background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(5px); }
     .btn-toggle-mic.muted { background: var(--danger); }
     .btn-toggle-speaker.active { background: #0284c7; }
-    .btn-screenshare { background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(5px); }
-    .btn-screenshare.active { background: #059669; }
 
     .volume-control-box { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.1); backdrop-filter: blur(8px); padding: 8px 18px; border-radius: 20px; color: white; font-size: 13px; }
     .volume-control-box input[type="range"] { accent-color: #38bdf8; cursor: pointer; }
@@ -312,11 +311,10 @@
     .banner-title { font-weight: 600; color: #38bdf8; font-size: 12px; }
     .banner-msg { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; color: #f1f5f9; }
 
-    .screen-share-container { flex: 1; display: flex; flex-direction: column; background: #0f172a; padding: 20px; align-items: center; justify-content: center; color: white; text-align: center; }
-    .screen-share-box { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
-    #tabScreenVideo { width: 100%; max-height: 65vh; background: #000; border-radius: 12px; object-fit: contain; border: 1px solid #334155; }
-    .share-btn-action { padding: 12px 24px; background: var(--primary); color: white; border: none; border-radius: 24px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; transition: background 0.2s; }
-    .share-btn-action:hover { background: var(--primary-hover); }
+    /* Group UI Styling */
+    .group-selection-box { padding: 12px; background: var(--surface-subtle); border-bottom: 1px solid var(--border); display: flex; gap: 8px; overflow-x: auto; }
+    .group-card-btn { background: white; border: 1px solid var(--border); padding: 8px 14px; border-radius: 12px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .group-card-btn.active { border-color: var(--primary); background: #eff6ff; color: var(--primary); }
   </style>
 </head>
 <body onclick="initAudioContext()" ontouchstart="initAudioContext()">
@@ -367,7 +365,6 @@
       <div class="call-controls">
         <button class="call-action-btn btn-toggle-mic" id="micBtn" onclick="toggleMic()" title="မိုက်ခရိုဖုန်း ဖွင့်/ပိတ်">🎙️</button>
         <button class="call-action-btn btn-toggle-speaker" id="speakerBtn" onclick="toggleSpeaker()" title="အပြင်စပီကာ ဖွင့်/ပိတ်">🔊</button>
-        <button class="call-action-btn btn-screenshare" id="callScreenShareBtn" onclick="toggleScreenShare()" title="Screen Share ပြုလုပ်ရန်">🖥️</button>
         <button class="call-action-btn btn-accept-call" id="acceptCallBtn" onclick="acceptIncomingCall()" style="display: none;" title="လက်ခံမည်">📞</button>
         <button class="call-action-btn btn-end-call" onclick="endCall()" title="ဖုန်းချမည်">📵</button>
       </div>
@@ -389,10 +386,11 @@
     </div>
 
     <div class="nav-tabs">
-      <button class="nav-tab active" onclick="switchTab('chatTab', this)">💬 Chat & Call</button>
-      <button class="nav-tab" onclick="switchTab('screenTab', this)">🖥️ Screen Share</button>
+      <button class="nav-tab active" onclick="switchTab('chatTab', this)">💬 Direct Chat</button>
+      <button class="nav-tab" onclick="switchTab('groupTab', this)">👨‍👩‍👧‍👦 Family & Groups</button>
     </div>
 
+    <!-- TAB 1: DIRECT CHAT -->
     <div id="chatTab" class="content-section active">
       <div class="search-box">
         <input type="text" id="targetUsernameInput" placeholder="သူငယ်ချင်း Username ရိုက်ထည့်ပါ">
@@ -410,34 +408,44 @@
       </div>
 
       <div class="input-area">
-        <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+        <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event, 'direct')">
         <button class="file-btn" onclick="document.getElementById('imageInput').click()" title="ဓာတ်ပုံ ပို့ရန်">🖼️</button>
         <div class="input-wrapper">
-          <textarea id="msgInput" placeholder="စာရိုက်ပါ..." rows="1" oninput="autoResize(this)" onkeydown="handleKeyDown(event)"></textarea>
-          <button class="clear-btn" id="clearBtn" onclick="clearInput()">✖</button>
+          <textarea id="msgInput" placeholder="စာရိုက်ပါ..." rows="1" oninput="autoResize(this)" onkeydown="handleKeyDown(event, 'direct')"></textarea>
+          <button class="clear-btn" id="clearBtn" onclick="clearInput('msgInput', 'clearBtn')">✖</button>
         </div>
-        <button class="send-btn" onclick="sendTextMessage()">➤</button>
+        <button class="send-btn" onclick="sendTextMessage('direct')">➤</button>
       </div>
     </div>
 
-    <div id="screenTab" class="content-section">
-      <div class="screen-share-container">
-        <div class="screen-share-box">
-          <h3 style="font-weight: 600;">🖥️ Screen Sharing</h3>
-          <p style="font-size: 13px; color: #94a3b8; max-width: 320px; line-height: 1.5;">
-            PC / Laptop Browser မှ ရုပ်သံ သို့မဟုတ် စာရွက်စာတမ်း ပြသရန်အတွက် သုံးနိုင်ပါသည်။ (Call ချိတ်ဆက်ထားစဉ်တွင် လည်း သုံးနိုင်ပါသည်)
-          </p>
-          <button class="share-btn-action" id="tabShareBtn" onclick="toggleScreenShare()">
-            <span>🖥️ Screen Share စတင်မည်</span>
-          </button>
-          <video id="tabScreenVideo" autoplay playsinline style="display: none;"></video>
+    <!-- TAB 2: GROUP CHAT HUB -->
+    <div id="groupTab" class="content-section">
+      <div class="group-selection-box">
+        <button class="group-card-btn active" onclick="selectGroup('family_group', this)">🏠 Family Group</button>
+        <button class="group-card-btn" onclick="selectGroup('learning_group', this)">📚 Learning Hub</button>
+        <button class="group-card-btn" onclick="selectGroup('friends_group', this)">🎉 Friends Corner</button>
+      </div>
+
+      <div class="chat-area" id="groupChatArea">
+        <div style="text-align: center; color: var(--text-muted); margin-top: 40px; font-size: 13px;">
+          Group ကို ရွေးချယ်ပြီး စကားပြောဆိုပါ
         </div>
+      </div>
+
+      <div class="input-area">
+        <input type="file" id="groupImageInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event, 'group')">
+        <button class="file-btn" onclick="document.getElementById('groupImageInput').click()" title="ဓာတ်ပုံ ပို့ရန်">🖼️</button>
+        <div class="input-wrapper">
+          <textarea id="groupMsgInput" placeholder="Group သို့ စာရိုက်ပါ..." rows="1" oninput="autoResize(this)" onkeydown="handleKeyDown(event, 'group')"></textarea>
+          <button class="clear-btn" id="groupClearBtn" onclick="clearInput('groupMsgInput', 'groupClearBtn')">✖</button>
+        </div>
+        <button class="send-btn" onclick="sendTextMessage('group')">➤</button>
       </div>
     </div>
 
   </div>
 
-  <script type="module">
+   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, deleteDoc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js";
@@ -458,16 +466,15 @@
     const db = getFirestore(app);
     let messaging = null;
 
-    try {
-      messaging = getMessaging(app);
-    } catch(e) {
-      console.log("FCM Messaging Not Supported in this browser");
-    }
+    try { messaging = getMessaging(app); } catch(e) {}
 
     let currentUser = null;
     let targetUser = null;
     let currentChatID = null;
+    let currentGroupID = "family_group";
+    
     let unsubscribeChat = null;
+    let unsubscribeGroupChat = null;
     let activeCallTargetID = null;
     let unsubscribeCallEndListener = null;
     let bgListeners = [];
@@ -476,8 +483,6 @@
     let bannerTimeout = null;
     
     let localStream = null;
-    let screenStream = null;
-    let isScreenSharing = false;
     let peerConnection = null;
     let incomingCallData = null;
     let ringtoneInterval = null;
@@ -495,20 +500,15 @@
       ]
     };
 
-    /* --- FCM Setup & Token Handling --- */
     async function setupFCM(userID) {
       if (!messaging) return;
       try {
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
           const token = await getToken(messaging, { vapidKey: VAPID_KEY });
-          if (token) {
-            await updateDoc(doc(db, "users", userID), { fcmToken: token });
-          }
+          if (token) await updateDoc(doc(db, "users", userID), { fcmToken: token });
         }
-      } catch (err) {
-        console.error("FCM Setup Error:", err);
-      }
+      } catch (err) {}
     }
 
     if (messaging) {
@@ -520,7 +520,6 @@
       });
     }
 
-    /* --- Flashlight Controlling System --- */
     async function triggerFlashForMessage() {
       try {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
@@ -528,19 +527,14 @@
         const track = stream.getVideoTracks()[0];
         const imageCapture = new ImageCapture(track);
         const capabilities = await imageCapture.getPhotoCapabilities();
-        
         if (capabilities.fillLightMode && capabilities.fillLightMode.includes('flash')) {
           await track.applyConstraints({ advanced: [{ torch: true }] });
           setTimeout(async () => {
             await track.applyConstraints({ advanced: [{ torch: false }] });
             track.stop();
           }, 300);
-        } else {
-          track.stop();
-        }
-      } catch (e) {
-        console.log("Flashlight API unavailable or permission denied:", e);
-      }
+        } else { track.stop(); }
+      } catch (e) {}
     }
 
     async function startFlashlightBlinking() {
@@ -550,25 +544,16 @@
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
         const track = stream.getVideoTracks()[0];
         let state = false;
-
         flashInterval = setInterval(async () => {
           state = !state;
-          try {
-            await track.applyConstraints({ advanced: [{ torch: state }] });
-          } catch(e){}
+          try { await track.applyConstraints({ advanced: [{ torch: state }] }); } catch(e){}
         }, 500);
-
         window.currentFlashTrack = track;
-      } catch(e) {
-        console.log("Incoming Call Flash Error:", e);
-      }
+      } catch(e) {}
     }
 
     function stopFlashlightBlinking() {
-      if (flashInterval) {
-        clearInterval(flashInterval);
-        flashInterval = null;
-      }
+      if (flashInterval) { clearInterval(flashInterval); flashInterval = null; }
       if (window.currentFlashTrack) {
         try {
           window.currentFlashTrack.applyConstraints({ advanced: [{ torch: false }] });
@@ -584,19 +569,13 @@
         try {
           const userObj = JSON.parse(savedUser);
           loginSuccess(userObj.userID, userObj.name, userObj.username, false);
-        } catch(e) {
-          console.error("Auto Login Error", e);
-        }
+        } catch(e) {}
       }
     });
 
     window.initAudioContext = () => {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
     };
 
     window.switchTab = (tabId, element) => {
@@ -604,6 +583,14 @@
       document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
       document.getElementById(tabId).classList.add('active');
       element.classList.add('active');
+      if (tabId === 'groupTab') loadGroupMessages();
+    };
+
+    window.selectGroup = (groupId, btn) => {
+      document.querySelectorAll('.group-card-btn').forEach(el => el.classList.remove('active'));
+      btn.classList.add('active');
+      currentGroupID = groupId;
+      loadGroupMessages();
     };
 
     window.autoResize = (textarea) => {
@@ -611,118 +598,21 @@
       if (textarea.scrollHeight > 42) {
         textarea.style.height = (textarea.scrollHeight < 120 ? textarea.scrollHeight : 120) + 'px';
       }
-      const clearBtn = document.getElementById('clearBtn');
-      clearBtn.style.display = textarea.value.length > 0 ? 'block' : 'none';
     };
 
-    window.handleKeyDown = (event) => {
+    window.handleKeyDown = (event, mode) => {
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
-        window.sendTextMessage();
+        window.sendTextMessage(mode);
       }
     };
 
-    window.clearInput = () => {
-      const input = document.getElementById('msgInput');
+    window.clearInput = (inputId, btnId) => {
+      const input = document.getElementById(inputId);
       input.value = '';
       input.style.height = '42px';
-      document.getElementById('clearBtn').style.display = 'none';
+      document.getElementById(btnId).style.display = 'none';
       input.focus();
-    };
-
-    /* Safe Cross-Browser Screen Sharing Handling */
-    window.toggleScreenShare = async () => {
-      window.initAudioContext();
-      const callScreenBtn = document.getElementById("callScreenShareBtn");
-      const tabShareBtn = document.getElementById("tabShareBtn");
-      const tabScreenVideo = document.getElementById("tabScreenVideo");
-      const localVideo = document.getElementById("localVideo");
-
-      if (!isScreenSharing) {
-        if (!navigator.mediaDevices || typeof navigator.mediaDevices.getDisplayMedia !== 'function') {
-          return alert("သင့် Browser / Device (Mobile Phone) တွင် Screen Share စနစ် အသုံးမပြုနိုင်ပါ သို့မဟုတ် ခွင့်မပြုပါ။ PC (Chrome/Edge) ဖြင့် စမ်းသပ်ကြည့်ပါ။");
-        }
-
-        try {
-          screenStream = await navigator.mediaDevices.getDisplayMedia({
-            video: true,
-            audio: false
-          });
-
-          const screenTrack = screenStream.getVideoTracks()[0];
-
-          if (peerConnection) {
-            const senders = peerConnection.getSenders();
-            const videoSender = senders.find(s => s.track && s.track.kind === 'video');
-
-            if (videoSender) {
-              await videoSender.replaceTrack(screenTrack);
-            } else {
-              peerConnection.addTrack(screenTrack, screenStream);
-            }
-          }
-
-          if (tabScreenVideo) {
-            tabScreenVideo.srcObject = screenStream;
-            tabScreenVideo.style.display = "block";
-          }
-          if (localVideo) {
-            localVideo.srcObject = screenStream;
-          }
-
-          screenTrack.onended = () => {
-            window.stopScreenSharing();
-          };
-
-          isScreenSharing = true;
-          if (callScreenBtn) callScreenBtn.classList.add("active");
-          if (tabShareBtn) tabShareBtn.innerHTML = "<span>⏹️ Screen Share ရပ်တန့်မည်</span>";
-
-        } catch (error) {
-          console.error("Screen Share Error:", error);
-          if (error.name !== "NotAllowedError") {
-            alert("Screen Share စတင်၍ မရပါ: " + error.message);
-          }
-        }
-      } else {
-        window.stopScreenSharing();
-      }
-    };
-
-    window.stopScreenSharing = async () => {
-      const callScreenBtn = document.getElementById("callScreenShareBtn");
-      const tabShareBtn = document.getElementById("tabShareBtn");
-      const tabScreenVideo = document.getElementById("tabScreenVideo");
-      const localVideo = document.getElementById("localVideo");
-
-      if (screenStream) {
-        screenStream.getTracks().forEach(track => track.stop());
-        screenStream = null;
-      }
-
-      if (peerConnection && localStream) {
-        const videoTrack = localStream.getVideoTracks()[0];
-        if (videoTrack) {
-          const senders = peerConnection.getSenders();
-          const videoSender = senders.find(s => s.track && s.track.kind === 'video');
-          if (videoSender) {
-            await videoSender.replaceTrack(videoTrack);
-          }
-        }
-      }
-
-      if (localVideo && localStream) {
-        localVideo.srcObject = localStream;
-      }
-
-      if (tabScreenVideo) {
-        tabScreenVideo.srcObject = null;
-        tabScreenVideo.style.display = "none";
-      }
-
-      isScreenSharing = false;
-      if (callScreenBtn) callScreenBtn.classList.remove("active");
-      if (tabShareBtn) tabShareBtn.innerHTML = "<span>🖥️ Screen Share စတင်မည်</span>";
     };
 
     function playRingtone() {
@@ -743,14 +633,11 @@
             osc.stop(audioCtx.currentTime + 0.8);
           }
         }, 1500);
-      } catch (e) { console.log(e); }
+      } catch (e) {}
     }
 
     function stopRingtone() {
-      if (ringtoneInterval) {
-        clearInterval(ringtoneInterval);
-        ringtoneInterval = null;
-      }
+      if (ringtoneInterval) { clearInterval(ringtoneInterval); ringtoneInterval = null; }
       stopFlashlightBlinking();
     }
 
@@ -767,13 +654,12 @@
       document.getElementById("bannerText").innerText = text;
       
       banner.classList.add("show");
-
       if (bannerTimeout) clearTimeout(bannerTimeout);
-      const displayDuration = Math.min(Math.max(text.length * 100, 3000), 6000);
 
+      // Auto dismiss after 3.5 seconds to prevent getting stuck
       bannerTimeout = setTimeout(() => {
         banner.classList.remove("show");
-      }, displayDuration);
+      }, 3500);
     }
 
     window.clickBanner = () => {
@@ -825,30 +711,16 @@
         if (uSnap.exists()) {
           const userID = uSnap.data().userID;
           const userDoc = await getDoc(doc(db, "users", userID));
-          
-          if (userDoc.exists()) {
-            loginSuccess(userID, userDoc.data().name, username);
-          } else {
-            alert("အကောင့် အချက်အလက် ရှာမတွေ့ပါ။");
-          }
-        } else {
-          alert("ဤ Username ဖြင့် အကောင့်မရှိပါ။ အကောင့်အသစ် အရင်ဖွင့်ပါ။");
-        }
-      } catch (error) {
-        console.error("Login Error:", error);
-        alert("Login ဝင်ရာတွင် အမှားအယွင်း ရှိနေပါသည်။");
-      }
+          if (userDoc.exists()) loginSuccess(userID, userDoc.data().name, username);
+        } else { alert("ဤ Username ဖြင့် အကောင့်မရှိပါ။ အကောင့်အသစ် အရင်ဖွင့်ပါ။"); }
+      } catch (error) { alert("Login ဝင်ရာတွင် အမှားအယွင်း ရှိနေပါသည်။"); }
     };
 
     function loginSuccess(userID, name, username, saveToStorage = true) {
       currentUser = { userID, name, username };
-      
-      if (saveToStorage) {
-        localStorage.setItem("idchat_active_user", JSON.stringify(currentUser));
-      }
+      if (saveToStorage) localStorage.setItem("idchat_active_user", JSON.stringify(currentUser));
 
       document.getElementById("myUsernameDisplay").innerText = "@" + username;
-      
       const userCard = document.getElementById("userNameDisplay").parentElement;
       if (!document.getElementById("logoutBtn")) {
         const logoutBtn = document.createElement("span");
@@ -888,10 +760,7 @@
       targetUser = { userID: targetID, name: tUserDoc.data().name, username: uname };
       currentChatID = [currentUser.userID, targetID].sort().join("_");
       
-      if (unreadMap[uname]) {
-        delete unreadMap[uname];
-      }
-
+      if (unreadMap[uname]) delete unreadMap[uname];
       saveRecentContact(targetUser);
       loadMessages();
     };
@@ -979,25 +848,71 @@
       });
     }
 
-    window.sendTextMessage = async () => {
-      const input = document.getElementById("msgInput");
-      const text = input.value.trim();
-      if (!text || !currentChatID) return alert("သူငယ်ချင်း Username အရင် ရိုက်ထည့်ပါ!");
+    function loadGroupMessages() {
+      if (unsubscribeGroupChat) unsubscribeGroupChat();
+      const q = query(collection(db, "groups", currentGroupID, "messages"), orderBy("timestamp", "asc"));
       
-      await addDoc(collection(db, "chats", currentChatID, "messages"), {
-        senderID: currentUser.userID,
-        type: "text",
-        content: text,
-        timestamp: serverTimestamp()
+      unsubscribeGroupChat = onSnapshot(q, (snapshot) => {
+        const groupChatArea = document.getElementById("groupChatArea");
+        groupChatArea.innerHTML = "";
+        snapshot.forEach((doc) => {
+          const msg = doc.data();
+          const msgDiv = document.createElement("div");
+          const timeStr = formatTime(msg.timestamp);
+          const isMe = msg.senderID === currentUser.userID;
+
+          msgDiv.className = `message ${isMe ? 'sent' : 'received'}`;
+          
+          let senderHtml = !isMe ? `<div class="msg-sender">@${msg.senderUsername}</div>` : '';
+          
+          if (msg.type === "image") {
+            msgDiv.innerHTML = `${senderHtml}<img src="${msg.content}" alt="Image"><div class="msg-time">${timeStr}</div>`;
+          } else {
+            msgDiv.innerHTML = `${senderHtml}<div>${msg.content}</div><div class="msg-time">${timeStr}</div>`;
+          }
+
+          groupChatArea.appendChild(msgDiv);
+        });
+        groupChatArea.scrollTop = groupChatArea.scrollHeight;
       });
-      
-      window.clearInput();
+    }
+
+    window.sendTextMessage = async (mode = 'direct') => {
+      if (mode === 'direct') {
+        const input = document.getElementById("msgInput");
+        const text = input.value.trim();
+        if (!text || !currentChatID) return alert("သူငယ်ချင်း Username အရင် ရိုက်ထည့်ပါ!");
+        
+        await addDoc(collection(db, "chats", currentChatID, "messages"), {
+          senderID: currentUser.userID,
+          type: "text",
+          content: text,
+          timestamp: serverTimestamp()
+        });
+        window.clearInput('msgInput', 'clearBtn');
+      } else {
+        const input = document.getElementById("groupMsgInput");
+        const text = input.value.trim();
+        if (!text) return;
+
+        await addDoc(collection(db, "groups", currentGroupID, "messages"), {
+          senderID: currentUser.userID,
+          senderUsername: currentUser.username,
+          type: "text",
+          content: text,
+          timestamp: serverTimestamp()
+        });
+        window.clearInput('groupMsgInput', 'groupClearBtn');
+      }
     };
 
-    /* Handle Image Attachment Sending */
-    window.handleImageUpload = (e) => {
+    window.handleImageUpload = (e, mode = 'direct') => {
       const file = e.target.files[0];
-      if (!file || !currentChatID) return alert("သူငယ်ချင်း Username အရင် ရိုက်ထည့်ပါ!");
+      if (!file) return;
+
+      if (mode === 'direct' && !currentChatID) {
+        return alert("သူငယ်ချင်း Username အရင် ရိုက်ထည့်ပါ!");
+      }
 
       if (file.size > 1024 * 1024) {
         return alert("ဓာတ်ပုံ ပမာဏ 1MB ထက် နည်းရပါမည်!");
@@ -1006,16 +921,27 @@
       const reader = new FileReader();
       reader.onload = async (event) => {
         const base64Img = event.target.result;
-        await addDoc(collection(db, "chats", currentChatID, "messages"), {
-          senderID: currentUser.userID,
-          type: "image",
-          content: base64Img,
-          timestamp: serverTimestamp()
-        });
+        if (mode === 'direct') {
+          await addDoc(collection(db, "chats", currentChatID, "messages"), {
+            senderID: currentUser.userID,
+            type: "image",
+            content: base64Img,
+            timestamp: serverTimestamp()
+          });
+        } else {
+          await addDoc(collection(db, "groups", currentGroupID, "messages"), {
+            senderID: currentUser.userID,
+            senderUsername: currentUser.username,
+            type: "image",
+            content: base64Img,
+            timestamp: serverTimestamp()
+          });
+        }
       };
       reader.readAsDataURL(file);
     };
 
+    // Bug Fix: Log strictly to active Call Target Chat, not selected chat
     async function logCallToChat(targetID, callStatusText, callType = "video") {
       if (currentUser && targetID) {
         const targetChatID = [currentUser.userID, targetID].sort().join("_");
@@ -1080,7 +1006,6 @@
         if (element && typeof element.setSinkId === 'function') {
           const devices = await navigator.mediaDevices.enumerateDevices();
           const audioOutputs = devices.filter(device => device.kind === 'audiooutput');
-          
           if (audioOutputs.length > 1) {
             isSpeakerOn = !isSpeakerOn;
             const targetDevice = isSpeakerOn ? audioOutputs[1].deviceId : audioOutputs[0].deviceId;
@@ -1099,9 +1024,7 @@
           btn.innerText = isSpeakerOn ? "🔊" : "🔈";
           window.setIncomingVolume(isSpeakerOn ? 1.0 : 0.3);
         }
-      } catch (e) {
-        console.error("Speaker Switch Error:", e);
-      }
+      } catch (e) {}
     };
 
     function createPeerConnection(targetID) {
@@ -1116,14 +1039,10 @@
           window.initAudioContext();
           if (currentCallType === "audio") {
             const remoteAudio = document.getElementById("remoteAudio");
-            if (remoteAudio && event.streams[0]) {
-              remoteAudio.srcObject = event.streams[0];
-            }
+            if (remoteAudio && event.streams[0]) remoteAudio.srcObject = event.streams[0];
           } else {
             const remoteVideo = document.getElementById("remoteVideo");
-            if (remoteVideo && event.streams[0]) {
-              remoteVideo.srcObject = event.streams[0];
-            }
+            if (remoteVideo && event.streams[0]) remoteVideo.srcObject = event.streams[0];
           }
         };
 
@@ -1133,18 +1052,14 @@
             addDoc(candidateCol, event.candidate.toJSON()).catch(() => {});
           }
         };
-      } catch (err) {
-        console.error("PeerConnection error: ", err);
-      }
+      } catch (err) {}
     }
 
     function listenForCallEnd(callDocID) {
       if (unsubscribeCallEndListener) unsubscribeCallEndListener();
       const callDocRef = doc(db, "calls", callDocID);
       unsubscribeCallEndListener = onSnapshot(callDocRef, (snapshot) => {
-        if (!snapshot.exists()) {
-          resetCallState();
-        }
+        if (!snapshot.exists()) resetCallState();
       });
     }
 
@@ -1181,12 +1096,8 @@
       try {
         const audioOptions = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
         const constraints = type === "audio" ? { video: false, audio: audioOptions } : { video: true, audio: audioOptions };
-        
         localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        
-        if (type === "video") {
-          document.getElementById("localVideo").srcObject = localStream;
-        }
+        if (type === "video") document.getElementById("localVideo").srcObject = localStream;
       } catch (err) {
         return alert("ကင်မရာ သို့မဟုတ် မိုက်ခရိုဖုန်း အသုံးပြုခွင့် ပိတ်ထားပါသည်။");
       }
@@ -1217,7 +1128,6 @@
           resetCallState();
           return;
         }
-
         const data = snapshot.data();
         if (data && data.answer && peerConnection && !peerConnection.currentRemoteDescription) {
           stopRingtone();
@@ -1232,9 +1142,7 @@
         snapshot.docChanges().forEach(async (change) => {
           if (change.type === "added") {
             const candidate = new RTCIceCandidate(change.doc.data());
-            if (peerConnection) {
-              await peerConnection.addIceCandidate(candidate).catch(() => {});
-            }
+            if (peerConnection) await peerConnection.addIceCandidate(candidate).catch(() => {});
           }
         });
       });
@@ -1250,10 +1158,7 @@
         const audioOptions = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
         const constraints = currentCallType === "audio" ? { video: false, audio: audioOptions } : { video: true, audio: audioOptions };
         localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        
-        if (currentCallType === "video") {
-          document.getElementById("localVideo").srcObject = localStream;
-        }
+        if (currentCallType === "video") document.getElementById("localVideo").srcObject = localStream;
       } catch (err) {
         return alert("မိုက်ခရိုဖုန်း / ကင်မရာ ဖွင့်မရပါ။");
       }
@@ -1275,9 +1180,7 @@
         snapshot.docChanges().forEach(async (change) => {
           if (change.type === "added") {
             const candidate = new RTCIceCandidate(change.doc.data());
-            if (peerConnection) {
-              await peerConnection.addIceCandidate(candidate).catch(() => {});
-            }
+            if (peerConnection) await peerConnection.addIceCandidate(candidate).catch(() => {});
           }
         });
       });
@@ -1292,7 +1195,7 @@
         snapshot.forEach(async (docSnapshot) => {
           await deleteDoc(docSnapshot.ref);
         });
-      } catch(e) { console.log(e); }
+      } catch(e) {}
     }
 
     window.endCall = async () => {
@@ -1313,7 +1216,6 @@
           await deleteDoc(doc(db, "calls", currentUser.userID)).catch(() => {});
         }
       } catch (err) {
-        console.error("End call error: ", err);
       } finally {
         resetCallState();
       }
@@ -1321,8 +1223,6 @@
 
     function resetCallState() {
       stopRingtone();
-      window.stopScreenSharing();
-      
       if (unsubscribeCallEndListener) {
         unsubscribeCallEndListener();
         unsubscribeCallEndListener = null;
