@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IDChat - Professional WebRTC & Group Messaging</title>
+  <title>IDChat - Smart Web Messaging & Translator</title>
   <style>
     :root {
       --primary: #0084ff;
@@ -59,27 +59,6 @@
       align-items: center; 
       border-bottom: 1px solid var(--border);
     }
-
-    .header-btns { display: flex; gap: 8px; }
-    
-    .call-btn { 
-      background: #ecfdf5; 
-      color: var(--success); 
-      border: 1px solid #a7f3d0; 
-      padding: 6px 14px; 
-      border-radius: 20px; 
-      font-size: 13px; 
-      font-weight: 600; 
-      cursor: pointer; 
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-    
-    .call-btn:hover { background: #d1fae5; transform: translateY(-1px); }
-    .audio-btn { background: #eff6ff; color: var(--primary); border-color: #bfdbfe; }
-    .audio-btn:hover { background: #dbeafe; }
 
     .user-card { 
       background: var(--surface-subtle); 
@@ -207,10 +186,34 @@
     .message { max-width: 80%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.4; word-break: break-word; white-space: pre-wrap; display: flex; flex-direction: column; }
     .message.sent { background: var(--primary); color: white; align-self: flex-end; border-bottom-right-radius: 4px; box-shadow: 0 2px 4px rgba(0,132,255,0.2); }
     .message.received { background: white; color: var(--text-main); align-self: flex-start; border-bottom-left-radius: 4px; border: 1px solid var(--border); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-    .message.call-log { background: #e2e8f0; color: #475569; align-self: center; font-size: 12px; padding: 6px 14px; border-radius: 12px; text-align: center; border: none; }
     .message img { max-width: 100%; border-radius: 8px; margin-top: 4px; }
     .msg-sender { font-size: 11px; font-weight: bold; margin-bottom: 2px; color: #0284c7; }
     .msg-time { font-size: 10px; opacity: 0.7; align-self: flex-end; margin-top: 4px; }
+
+    /* Translator Button & Box UI */
+    .translate-btn {
+      font-size: 10px;
+      margin-top: 4px;
+      cursor: pointer;
+      opacity: 0.8;
+      display: inline-block;
+      text-decoration: underline;
+      align-self: flex-start;
+    }
+    .message.sent .translate-btn { color: #e0f2fe; }
+    .message.received .translate-btn { color: var(--primary); }
+    
+    .translated-text {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px dashed rgba(255,255,255,0.4);
+      font-size: 12px;
+      font-style: italic;
+    }
+    .message.received .translated-text {
+      border-top: 1px dashed var(--border);
+      color: #334155;
+    }
 
     .input-area { padding: 12px; border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: flex-end; background: white; }
     .input-wrapper { flex: 1; position: relative; display: flex; align-items: center; }
@@ -248,45 +251,6 @@
     .input-area button.send-btn { background: var(--primary); color: white; border: none; width: 42px; height: 42px; border-radius: 50%; cursor: pointer; font-size: 16px; flex-shrink: 0; display: flex; justify-content: center; align-items: center; transition: transform 0.1s; }
     .input-area button.send-btn:active { transform: scale(0.95); }
 
-    .video-call-overlay { display: none; position: absolute; inset: 0; background: #0b0f19; z-index: 2000; flex-direction: column; justify-content: space-between; align-items: center; padding: 24px 16px; }
-    .video-container { width: 100%; height: 68%; position: relative; background: #1e293b; border-radius: 20px; overflow: hidden; display: flex; justify-content: center; align-items: center; }
-    .local-video { width: 105px; height: 145px; background: #000; border: 2px solid rgba(255,255,255,0.8); border-radius: 12px; position: absolute; top: 12px; right: 12px; object-fit: cover; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
-    .remote-video { width: 100%; height: 100%; object-fit: cover; }
-    
-    .audio-avatar-box { display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; gap: 16px; }
-    .audio-avatar { 
-      width: 120px; 
-      height: 120px; 
-      border-radius: 50%; 
-      background: linear-gradient(135deg, #0084ff, #00c6ff); 
-      display: flex; 
-      justify-content: center; 
-      align-items: center; 
-      font-size: 48px; 
-      font-weight: bold; 
-      box-shadow: 0 0 0 0 rgba(0, 132, 255, 0.5);
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(0, 132, 255, 0.6); }
-      70% { box-shadow: 0 0 0 25px rgba(0, 132, 255, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(0, 132, 255, 0); }
-    }
-
-    .call-controls-wrapper { display: flex; flex-direction: column; align-items: center; gap: 16px; margin-bottom: 10px; width: 100%; }
-    .call-controls { display: flex; gap: 14px; justify-content: center; align-items: center; flex-wrap: wrap; }
-    .call-action-btn { width: 52px; height: 52px; border-radius: 50%; border: none; font-size: 20px; color: white; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: transform 0.2s; }
-    .call-action-btn:active { transform: scale(0.9); }
-    .btn-end-call { background: var(--danger); }
-    .btn-accept-call { background: var(--success); }
-    .btn-toggle-mic, .btn-toggle-speaker { background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(5px); }
-    .btn-toggle-mic.muted { background: var(--danger); }
-    .btn-toggle-speaker.active { background: #0284c7; }
-
-    .volume-control-box { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.1); backdrop-filter: blur(8px); padding: 8px 18px; border-radius: 20px; color: white; font-size: 13px; }
-    .volume-control-box input[type="range"] { accent-color: #38bdf8; cursor: pointer; }
-
     .top-notification {
       position: absolute;
       top: -80px;
@@ -311,95 +275,12 @@
     .banner-title { font-weight: 600; color: #38bdf8; font-size: 12px; }
     .banner-msg { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; color: #f1f5f9; }
 
-    /* Group UI Styling */
     .group-selection-box { padding: 12px; background: var(--surface-subtle); border-bottom: 1px solid var(--border); display: flex; gap: 8px; overflow-x: auto; }
     .group-card-btn { background: white; border: 1px solid var(--border); padding: 8px 14px; border-radius: 12px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
     .group-card-btn.active { border-color: var(--primary); background: #eff6ff; color: var(--primary); }
-
-    /* Group Call UI Additions */
-    .group-call-banner {
-      background: #0284c7;
-      color: white;
-      padding: 10px 14px;
-      border-radius: 12px;
-      margin-bottom: 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 13px;
-    }
-    .group-call-banner button {
-      background: white;
-      color: #0284c7;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 16px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .group-video-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-      gap: 10px;
-      width: 100%;
-      height: 68%;
-      background: #0f172a;
-      border-radius: 16px;
-      padding: 10px;
-      overflow-y: auto;
-      align-content: start;
-    }
-    .group-video-card {
-      position: relative;
-      background: #1e293b;
-      border-radius: 12px;
-      overflow: hidden;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      aspect-ratio: 3/4;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-    }
-    .group-video-card video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    .group-video-card .user-tag {
-      position: absolute;
-      bottom: 6px;
-      left: 6px;
-      background: rgba(0,0,0,0.6);
-      backdrop-filter: blur(4px);
-      color: white;
-      padding: 3px 8px;
-      border-radius: 8px;
-      font-size: 11px;
-      font-weight: 500;
-    }
-    .group-audio-card {
-      background: #334155;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-    }
-    .group-audio-avatar {
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      background: #0284c7;
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      font-weight: bold;
-    }
   </style>
 </head>
-<body onclick="initAudioContext()" ontouchstart="initAudioContext()">
+<body>
 
   <div class="top-notification" id="topBanner" onclick="clickBanner()">
     <div class="banner-content">
@@ -423,43 +304,10 @@
     </div>
   </div>
 
-  <div class="video-call-overlay" id="videoCallOverlay">
-    <h3 style="color: white; font-size: 16px; margin-top: 8px; font-weight: 500;" id="callStatusText">ခေါ်ဆိုနေသည်...</h3>
-    
-    <div class="video-container" id="videoContainer">
-      <video id="remoteVideo" class="remote-video" autoplay playsinline></video>
-      <video id="localVideo" class="local-video" autoplay playsinline muted></video>
-      <audio id="remoteAudio" autoplay></audio>
-      
-      <div class="audio-avatar-box" id="audioCallUI" style="display: none;">
-        <div class="audio-avatar" id="avatarText">📞</div>
-        <h4 id="audioCallerName" style="color: #cbd5e1; font-weight: 500;">အသံဖြင့် ဖုန်းပြောဆိုနေသည်</h4>
-      </div>
-    </div>
-
-    <div class="call-controls-wrapper">
-      <div class="volume-control-box">
-        <span>🔉</span>
-        <input type="range" id="incomingVolumeSlider" min="0" max="1" step="0.05" value="1" oninput="setIncomingVolume(this.value)">
-        <span>🔊</span>
-      </div>
-
-      <div class="call-controls">
-        <button class="call-action-btn btn-toggle-mic" id="micBtn" onclick="toggleMic()" title="မိုက်ခရိုဖုန်း ဖွင့်/ပိတ်">🎙️</button>
-        <button class="call-action-btn btn-toggle-speaker" id="speakerBtn" onclick="toggleSpeaker()" title="အပြင်စပီကာ ဖွင့်/ပိတ်">🔊</button>
-        <button class="call-action-btn btn-accept-call" id="acceptCallBtn" onclick="acceptIncomingCall()" style="display: none;" title="လက်ခံမည်">📞</button>
-        <button class="call-action-btn btn-end-call" onclick="endCall()" title="ဖုန်းချမည်">📵</button>
-      </div>
-    </div>
-  </div>
-
   <div class="app-container">
     <div class="header">
       <span>IDChat</span>
-      <div class="header-btns">
-        <button class="call-btn audio-btn" onclick="startCall('audio')">📞 Audio</button>
-        <button class="call-btn" onclick="startCall('video')">📹 Video</button>
-      </div>
+      <span style="font-size: 12px; background: #e0f2fe; color: #0284c7; padding: 4px 10px; border-radius: 12px;">🌐 Translator Active</span>
     </div>
     
     <div class="user-card">
@@ -508,12 +356,6 @@
         <button class="group-card-btn" onclick="selectGroup('friends_group', this)">🎉 Friends Corner</button>
       </div>
 
-      <!-- Friends Corner တွင်သာ ပေါ်မည့် Group Meeting Control Bar -->
-      <div id="friendsGroupCallBar" style="display: none; padding: 8px 12px; background: #e0f2fe; border-bottom: 1px solid var(--border); text-align: right;">
-        <button onclick="startGroupCall('audio')" style="background: #0284c7; color: white; border: none; padding: 6px 12px; border-radius: 16px; font-size: 12px; font-weight: bold; cursor: pointer; margin-right: 6px;">📞 Group Audio Live</button>
-        <button onclick="startGroupCall('video')" style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 16px; font-size: 12px; font-weight: bold; cursor: pointer;">📹 Group Video Meeting</button>
-      </div>
-
       <div class="chat-area" id="groupChatArea">
         <div style="text-align: center; color: var(--text-muted); margin-top: 40px; font-size: 13px;">
           Group ကို ရွေးချယ်ပြီး စကားပြောဆိုပါ
@@ -535,7 +377,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, deleteDoc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js";
 
     const firebaseConfig = {
@@ -563,48 +405,10 @@
     
     let unsubscribeChat = null;
     let unsubscribeGroupChat = null;
-    let activeCallTargetID = null;
-    let unsubscribeCallEndListener = null;
     let bgListeners = [];
     let unreadMap = {};
     let bannerTargetUser = null;
     let bannerTimeout = null;
-    
-    let localStream = null;
-    let peerConnection = null;
-    let incomingCallData = null;
-    let ringtoneInterval = null;
-    let flashInterval = null;
-    let audioCtx = null;
-
-    let currentCallType = "video"; 
-    let isMicMuted = false;
-    let isSpeakerOn = false;
-
-    // Group Call Specific Variables
-    let isGroupCall = false;
-    let groupPeerConnections = {};
-    let unsubscribeGroupCall = null;
-    let groupSignalsUnsubscribe = null;
-    let groupParticipantsUnsubscribe = null;
-
-    // Turn Server ပါဝင်သော Config (မတူညီသော Wi-Fi/Mobile Data များတွင် အလွယ်တကူ ချိတ်ဆက်နိုင်ရန်)
-    const rtcConfig = {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        {
-          urls: "turn:openrelay.metered.ca:80",
-          username: "openrelay",
-          credential: "openrelay"
-        },
-        {
-          urls: "turn:openrelay.metered.ca:443",
-          username: "openrelay",
-          credential: "openrelay"
-        }
-      ]
-    };
 
     async function setupFCM(userID) {
       if (!messaging) return;
@@ -619,55 +423,42 @@
 
     if (messaging) {
       onMessage(messaging, (payload) => {
-        triggerFlashForMessage();
         if (payload.notification) {
           showBannerNotification(payload.notification.title || 'Message', payload.notification.body || '');
         }
       });
     }
 
-    async function triggerFlashForMessage() {
-      try {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-        const track = stream.getVideoTracks()[0];
-        const imageCapture = new ImageCapture(track);
-        const capabilities = await imageCapture.getPhotoCapabilities();
-        if (capabilities.fillLightMode && capabilities.fillLightMode.includes('flash')) {
-          await track.applyConstraints({ advanced: [{ torch: true }] });
-          setTimeout(async () => {
-            await track.applyConstraints({ advanced: [{ torch: false }] });
-            track.stop();
-          }, 300);
-        } else { track.stop(); }
-      } catch (e) {}
-    }
+    /* ----------------------------------------------------
+       API KEY မလိုသော DIRECT TRANSLATION ENGINE
+    ---------------------------------------------------- */
+    window.translateMsg = async (msgId, text, targetLang = 'my') => {
+      const container = document.getElementById(`trans_${msgId}`);
+      if (!container) return;
 
-    async function startFlashlightBlinking() {
-      stopFlashlightBlinking();
-      try {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-        const track = stream.getVideoTracks()[0];
-        let state = false;
-        flashInterval = setInterval(async () => {
-          state = !state;
-          try { await track.applyConstraints({ advanced: [{ torch: state }] }); } catch(e){}
-        }, 500);
-        window.currentFlashTrack = track;
-      } catch(e) {}
-    }
+      container.style.display = "block";
+      container.innerText = "🌐 ဘာသာပြန်နေပါသည်...";
 
-    function stopFlashlightBlinking() {
-      if (flashInterval) { clearInterval(flashInterval); flashInterval = null; }
-      if (window.currentFlashTrack) {
-        try {
-          window.currentFlashTrack.applyConstraints({ advanced: [{ torch: false }] });
-          window.currentFlashTrack.stop();
-        } catch(e){}
-        window.currentFlashTrack = null;
+      try {
+        // Public Free Google Translate Endpoint (API Key မလိုပါ)
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        let translatedText = "";
+        if (data && data[0]) {
+          translatedText = data[0].map(item => item[0]).join('');
+        }
+
+        if (translatedText) {
+          container.innerHTML = `<b>Translated (${targetLang.toUpperCase()}):</b> ${translatedText}`;
+        } else {
+          container.innerText = "ဘာသာပြန်၍ မရပါခင်ဗျာ။";
+        }
+      } catch (err) {
+        container.innerText = "ကွန်ရက် အခက်အခဲကြောင့် ဘာသာပြန်၍ မရပါ။";
       }
-    }
+    };
 
     window.addEventListener("DOMContentLoaded", () => {
       const savedUser = localStorage.getItem("idchat_active_user");
@@ -678,11 +469,6 @@
         } catch(e) {}
       }
     });
-
-    window.initAudioContext = () => {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-    };
 
     window.switchTab = (tabId, element) => {
       document.querySelectorAll('.content-section').forEach(el => el.classList.remove('active'));
@@ -696,16 +482,6 @@
       document.querySelectorAll('.group-card-btn').forEach(el => el.classList.remove('active'));
       btn.classList.add('active');
       currentGroupID = groupId;
-      
-      const callBar = document.getElementById("friendsGroupCallBar");
-      if (groupId === 'friends_group') {
-        callBar.style.display = "block";
-        listenForGroupCallBanner();
-      } else {
-        callBar.style.display = "none";
-        if (unsubscribeGroupCall) { unsubscribeGroupCall(); unsubscribeGroupCall = null; }
-      }
-
       loadGroupMessages();
     };
 
@@ -730,32 +506,6 @@
       document.getElementById(btnId).style.display = 'none';
       input.focus();
     };
-
-    function playRingtone() {
-      try {
-        window.initAudioContext();
-        stopRingtone();
-        ringtoneInterval = setInterval(() => {
-          if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-          if (audioCtx) {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(440, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.8);
-          }
-        }, 1500);
-      } catch (e) {}
-    }
-
-    function stopRingtone() {
-      if (ringtoneInterval) { clearInterval(ringtoneInterval); ringtoneInterval = null; }
-      stopFlashlightBlinking();
-    }
 
     function formatTime(timestamp) {
       if (!timestamp) return "";
@@ -797,7 +547,6 @@
     }
 
     window.handleRegister = async () => {
-      window.initAudioContext();
       const name = document.getElementById("regName").value.trim();
       const username = document.getElementById("regUsername").value.trim().toLowerCase().replace("@","");
       const pass = document.getElementById("regPass").value.trim();
@@ -817,7 +566,6 @@
     };
 
     window.handleLogin = async () => {
-      window.initAudioContext();
       const username = document.getElementById("loginUsername").value.trim().toLowerCase().replace("@","");
       if (!username) return alert("Username ရိုက်ထည့်ပါ!");
       
@@ -851,7 +599,6 @@
       
       setupFCM(userID);
       loadRecentContacts();
-      listenForIncomingCalls();
       listenForBackgroundMessages();
     }
 
@@ -919,7 +666,6 @@
             if (!initialLoad && latestMsg.senderID !== currentUser.userID) {
               unreadMap[c.username] = true;
               loadRecentContacts();
-              triggerFlashForMessage();
               if (!targetUser || targetUser.username !== c.username) {
                 showBannerNotification(c.username, latestMsg.type === 'image' ? '[📷 ဓာတ်ပုံ]' : latestMsg.content);
               }
@@ -938,23 +684,29 @@
       unsubscribeChat = onSnapshot(q, (snapshot) => {
         const chatArea = document.getElementById("chatArea");
         chatArea.innerHTML = "";
-        snapshot.forEach((doc) => {
-          const msg = doc.data();
+        snapshot.forEach((docSnap) => {
+          const msg = docSnap.data();
+          const msgId = docSnap.id;
           const msgDiv = document.createElement("div");
           const timeStr = formatTime(msg.timestamp);
 
-          if (msg.type === "call_log") {
-            msgDiv.className = "message call-log";
-            const icon = msg.callType === "audio" ? "📞" : "📹";
-            msgDiv.innerText = `${icon} ${msg.content} (${timeStr})`;
-          } else if (msg.type === "image") {
+          if (msg.type === "image") {
             const isMe = msg.senderID === currentUser.userID;
             msgDiv.className = `message ${isMe ? 'sent' : 'received'}`;
             msgDiv.innerHTML = `<img src="${msg.content}" alt="Image"><div class="msg-time">${timeStr}</div>`;
           } else {
             const isMe = msg.senderID === currentUser.userID;
             msgDiv.className = `message ${isMe ? 'sent' : 'received'}`;
-            msgDiv.innerHTML = `<div>${msg.content}</div><div class="msg-time">${timeStr}</div>`;
+            
+            const cleanText = msg.content.replace(/'/g, "\\'").replace(/"/g, '\\"');
+            msgDiv.innerHTML = `
+              <div>${msg.content}</div>
+              <div id="trans_${msgId}" class="translated-text" style="display:none;"></div>
+              <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <span class="translate-btn" onclick="translateMsg('${msgId}', '${cleanText}', 'my')">🌐 ဘာသာပြန်မည်</span>
+                <span class="msg-time">${timeStr}</span>
+              </div>
+            `;
           }
 
           chatArea.appendChild(msgDiv);
@@ -970,20 +722,29 @@
       unsubscribeGroupChat = onSnapshot(q, (snapshot) => {
         const groupChatArea = document.getElementById("groupChatArea");
         groupChatArea.innerHTML = "";
-        snapshot.forEach((doc) => {
-          const msg = doc.data();
+        snapshot.forEach((docSnap) => {
+          const msg = docSnap.data();
+          const msgId = docSnap.id;
           const msgDiv = document.createElement("div");
           const timeStr = formatTime(msg.timestamp);
           const isMe = msg.senderID === currentUser.userID;
 
           msgDiv.className = `message ${isMe ? 'sent' : 'received'}`;
-          
           let senderHtml = !isMe ? `<div class="msg-sender">@${msg.senderUsername}</div>` : '';
           
           if (msg.type === "image") {
             msgDiv.innerHTML = `${senderHtml}<img src="${msg.content}" alt="Image"><div class="msg-time">${timeStr}</div>`;
           } else {
-            msgDiv.innerHTML = `${senderHtml}<div>${msg.content}</div><div class="msg-time">${timeStr}</div>`;
+            const cleanText = msg.content.replace(/'/g, "\\'").replace(/"/g, '\\"');
+            msgDiv.innerHTML = `
+              ${senderHtml}
+              <div>${msg.content}</div>
+              <div id="trans_${msgId}" class="translated-text" style="display:none;"></div>
+              <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <span class="translate-btn" onclick="translateMsg('${msgId}', '${cleanText}', 'my')">🌐 ဘာသာပြန်မည်</span>
+                <span class="msg-time">${timeStr}</span>
+              </div>
+            `;
           }
 
           groupChatArea.appendChild(msgDiv);
@@ -1055,590 +816,6 @@
       };
       reader.readAsDataURL(file);
     };
-
-    async function logCallToChat(targetID, callStatusText, callType = "video") {
-      if (currentUser && targetID) {
-        const targetChatID = [currentUser.userID, targetID].sort().join("_");
-        
-        await addDoc(collection(db, "chats", targetChatID, "messages"), {
-          senderID: currentUser.userID,
-          type: "call_log",
-          callType: callType,
-          content: callStatusText,
-          timestamp: serverTimestamp()
-        }).catch((err) => console.error("Call Log Error:", err));
-      }
-    }
-
-    function setupCallUI(callType, callerName = "") {
-      const localVideo = document.getElementById("localVideo");
-      const remoteVideo = document.getElementById("remoteVideo");
-      const audioUI = document.getElementById("audioCallUI");
-
-      if (callType === "audio") {
-        localVideo.style.display = "none";
-        remoteVideo.style.display = "none";
-        audioUI.style.display = "flex";
-        document.getElementById("avatarText").innerText = callerName ? callerName.charAt(0).toUpperCase() : "📞";
-        document.getElementById("audioCallerName").innerText = callerName || "အသံဖြင့် ဖုန်းပြောဆိုနေသည်";
-      } else {
-        localVideo.style.display = "block";
-        remoteVideo.style.display = "block";
-        audioUI.style.display = "none";
-      }
-    }
-
-    window.setIncomingVolume = (val) => {
-      const remoteAudio = document.getElementById("remoteAudio");
-      const remoteVideo = document.getElementById("remoteVideo");
-      if (remoteAudio) remoteAudio.volume = val;
-      if (remoteVideo) remoteVideo.volume = val;
-    };
-
-    window.toggleMic = () => {
-      window.initAudioContext();
-      if (localStream) {
-        const audioTrack = localStream.getAudioTracks()[0];
-        if (audioTrack) {
-          isMicMuted = !isMicMuted;
-          audioTrack.enabled = !isMicMuted;
-          const btn = document.getElementById("micBtn");
-          btn.classList.toggle("muted", isMicMuted);
-          btn.innerText = isMicMuted ? "🎙️❌" : "🎙️";
-        }
-      }
-    };
-
-    window.toggleSpeaker = async () => {
-      window.initAudioContext();
-      const remoteAudio = document.getElementById("remoteAudio");
-      const remoteVideo = document.getElementById("remoteVideo");
-      const element = currentCallType === "audio" ? remoteAudio : remoteVideo;
-      const btn = document.getElementById("speakerBtn");
-
-      try {
-        if (element && typeof element.setSinkId === 'function') {
-          const devices = await navigator.mediaDevices.enumerateDevices();
-          const audioOutputs = devices.filter(device => device.kind === 'audiooutput');
-          if (audioOutputs.length > 1) {
-            isSpeakerOn = !isSpeakerOn;
-            const targetDevice = isSpeakerOn ? audioOutputs[1].deviceId : audioOutputs[0].deviceId;
-            await element.setSinkId(targetDevice);
-            btn.classList.toggle("active", isSpeakerOn);
-            btn.innerText = isSpeakerOn ? "🔊" : "🔈";
-          } else {
-            isSpeakerOn = !isSpeakerOn;
-            btn.classList.toggle("active", isSpeakerOn);
-            btn.innerText = isSpeakerOn ? "🔊" : "🔈";
-            window.setIncomingVolume(isSpeakerOn ? 1.0 : 0.3);
-          }
-        } else {
-          isSpeakerOn = !isSpeakerOn;
-          btn.classList.toggle("active", isSpeakerOn);
-          btn.innerText = isSpeakerOn ? "🔊" : "🔈";
-          window.setIncomingVolume(isSpeakerOn ? 1.0 : 0.3);
-        }
-      } catch (e) {}
-    };
-
-    function createPeerConnection(targetID) {
-      try {
-        peerConnection = new RTCPeerConnection(rtcConfig);
-
-        if (localStream) {
-          localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-        }
-
-        peerConnection.ontrack = (event) => {
-          window.initAudioContext();
-          if (currentCallType === "audio") {
-            const remoteAudio = document.getElementById("remoteAudio");
-            if (remoteAudio && event.streams[0]) remoteAudio.srcObject = event.streams[0];
-          } else {
-            const remoteVideo = document.getElementById("remoteVideo");
-            if (remoteVideo && event.streams[0]) remoteVideo.srcObject = event.streams[0];
-          }
-        };
-
-        peerConnection.onicecandidate = (event) => {
-          if (event.candidate && activeCallTargetID) {
-            const candidateCol = collection(db, "calls", activeCallTargetID, "candidates");
-            addDoc(candidateCol, event.candidate.toJSON()).catch(() => {});
-          }
-        };
-      } catch (err) {}
-    }
-
-    function listenForCallEnd(callDocID) {
-      if (unsubscribeCallEndListener) unsubscribeCallEndListener();
-      const callDocRef = doc(db, "calls", callDocID);
-      unsubscribeCallEndListener = onSnapshot(callDocRef, (snapshot) => {
-        if (!snapshot.exists()) resetCallState();
-      });
-    }
-
-    function listenForIncomingCalls() {
-      if (!currentUser) return;
-      onSnapshot(doc(db, "calls", currentUser.userID), (snapshot) => {
-        if (snapshot.exists()) {
-          const data = snapshot.data();
-          if (data && data.offer && !peerConnection) {
-            incomingCallData = data;
-            activeCallTargetID = data.callerID;
-            currentCallType = data.callType || "video";
-            
-            setupCallUI(currentCallType, data.callerName);
-            document.getElementById("videoCallOverlay").style.display = "flex";
-            const callLabel = currentCallType === "audio" ? "Audio Call" : "Video Call";
-            document.getElementById("callStatusText").innerText = `${data.callerName} (@${data.callerUsername}) ထံမှ ${callLabel} ဝင်လာပါသည်...`;
-            document.getElementById("acceptCallBtn").style.display = "flex";
-            playRingtone();
-            startFlashlightBlinking();
-            listenForCallEnd(currentUser.userID);
-          }
-        }
-      });
-    }
-
-    window.startCall = async (type = "video") => {
-      window.initAudioContext();
-      if (!targetUser) return alert("ခေါ်ဆိုလိုသော သူငယ်ချင်း၏ Username ကို ရိုက်ထည့်၍ မက်ဆေ့ခ်ျ အရင် ချိတ်ဆက်ပါ!");
-
-      activeCallTargetID = targetUser.userID;
-      currentCallType = type;
-
-      try {
-        const audioOptions = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
-        const constraints = type === "audio" ? { video: false, audio: audioOptions } : { video: true, audio: audioOptions };
-        localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        if (type === "video") document.getElementById("localVideo").srcObject = localStream;
-      } catch (err) {
-        return alert("ကင်မရာ သို့မဟုတ် မိုက်ခရိုဖုန်း အသုံးပြုခွင့် ပိတ်ထားပါသည်။");
-      }
-
-      setupCallUI(type, targetUser.name);
-      document.getElementById("videoCallOverlay").style.display = "flex";
-      document.getElementById("callStatusText").innerText = `${type === 'audio' ? 'Audio' : 'Video'} Call ခေါ်ဆိုနေသည်...`;
-      document.getElementById("acceptCallBtn").style.display = "none";
-
-      playRingtone();
-      createPeerConnection(targetUser.userID);
-
-      const offer = await peerConnection.createOffer();
-      await peerConnection.setLocalDescription(offer);
-
-      await setDoc(doc(db, "calls", targetUser.userID), {
-        callerID: currentUser.userID,
-        callerName: currentUser.name,
-        callerUsername: currentUser.username,
-        callType: type,
-        offer: { type: offer.type, sdp: offer.sdp }
-      });
-
-      listenForCallEnd(targetUser.userID);
-
-      onSnapshot(doc(db, "calls", targetUser.userID), async (snapshot) => {
-        if (!snapshot.exists()) {
-          resetCallState();
-          return;
-        }
-        const data = snapshot.data();
-        if (data && data.answer && peerConnection && !peerConnection.currentRemoteDescription) {
-          stopRingtone();
-          const remoteDesc = new RTCSessionDescription(data.answer);
-          await peerConnection.setRemoteDescription(remoteDesc);
-          document.getElementById("callStatusText").innerText = `${type === 'audio' ? 'Audio' : 'Video'} Call စတင်ပါပြီ`;
-        }
-      });
-
-      const candidatesCol = collection(db, "calls", currentUser.userID, "candidates");
-      onSnapshot(candidatesCol, (snapshot) => {
-        snapshot.docChanges().forEach(async (change) => {
-          if (change.type === "added") {
-            const candidate = new RTCIceCandidate(change.doc.data());
-            if (peerConnection) await peerConnection.addIceCandidate(candidate).catch(() => {});
-          }
-        });
-      });
-    };
-
-    window.acceptIncomingCall = async () => {
-      window.initAudioContext();
-      stopRingtone();
-      document.getElementById("acceptCallBtn").style.display = "none";
-      document.getElementById("callStatusText").innerText = "ချိတ်ဆက်နေသည်...";
-
-      try {
-        const audioOptions = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
-        const constraints = currentCallType === "audio" ? { video: false, audio: audioOptions } : { video: true, audio: audioOptions };
-        localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        if (currentCallType === "video") document.getElementById("localVideo").srcObject = localStream;
-      } catch (err) {
-        return alert("မိုက်ခရိုဖုန်း / ကင်မရာ ဖွင့်မရပါ။");
-      }
-
-      const callerID = incomingCallData.callerID;
-      createPeerConnection(callerID);
-
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingCallData.offer));
-
-      const answer = await peerConnection.createAnswer();
-      await peerConnection.setLocalDescription(answer);
-
-      await updateDoc(doc(db, "calls", currentUser.userID), {
-        answer: { type: answer.type, sdp: answer.sdp }
-      });
-
-      const candidatesCol = collection(db, "calls", callerID, "candidates");
-      onSnapshot(candidatesCol, (snapshot) => {
-        snapshot.docChanges().forEach(async (change) => {
-          if (change.type === "added") {
-            const candidate = new RTCIceCandidate(change.doc.data());
-            if (peerConnection) await peerConnection.addIceCandidate(candidate).catch(() => {});
-          }
-        });
-      });
-
-      document.getElementById("callStatusText").innerText = `${currentCallType === 'audio' ? 'Audio' : 'Video'} Call စတင်ပါပြီ`;
-    };
-
-    async function clearCandidates(callDocID) {
-      try {
-        const candidatesCol = collection(db, "calls", callDocID, "candidates");
-        const snapshot = await getDocs(candidatesCol);
-        snapshot.forEach(async (docSnapshot) => {
-          await deleteDoc(docSnapshot.ref);
-        });
-      } catch(e) {}
-    }
-
-    window.endCall = async () => {
-      try {
-        if (activeCallTargetID && !isGroupCall) {
-          const callTypeName = currentCallType === "audio" ? "Audio Call" : "Video Call";
-          const statusText = peerConnection && peerConnection.remoteDescription 
-            ? `${callTypeName} ပြောဆိုမှု ပြီးဆုံးခဲ့သည်` 
-            : `${callTypeName} ခေါ်ဆိုမှုကို ပယ်ဖျက်လိုက်သည်`;
-            
-          await logCallToChat(activeCallTargetID, statusText, currentCallType);
-          await clearCandidates(activeCallTargetID);
-          await deleteDoc(doc(db, "calls", activeCallTargetID)).catch(() => {});
-        }
-        
-        if (currentUser && !isGroupCall) {
-          await clearCandidates(currentUser.userID);
-          await deleteDoc(doc(db, "calls", currentUser.userID)).catch(() => {});
-        }
-      } catch (err) {
-      } finally {
-        resetCallState();
-      }
-    };
-
-    function resetCallState() {
-      stopRingtone();
-      if (unsubscribeCallEndListener) {
-        unsubscribeCallEndListener();
-        unsubscribeCallEndListener = null;
-      }
-      if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
-      }
-      if (peerConnection) {
-        peerConnection.close();
-        peerConnection = null;
-      }
-
-      // Group Call Cleanups
-      if (isGroupCall) {
-        if (currentUser) {
-          deleteDoc(doc(db, "group_calls", "friends_group", "participants", currentUser.userID)).catch(() => {});
-        }
-        
-        if (groupSignalsUnsubscribe) { groupSignalsUnsubscribe(); groupSignalsUnsubscribe = null; }
-        if (groupParticipantsUnsubscribe) { groupParticipantsUnsubscribe(); groupParticipantsUnsubscribe = null; }
-
-        Object.keys(groupPeerConnections).forEach(id => removeGroupPeer(id));
-        groupPeerConnections = {};
-        
-        const container = document.getElementById("videoContainer");
-        container.className = "video-container";
-        container.innerHTML = `
-          <video id="remoteVideo" class="remote-video" autoplay playsinline></video>
-          <video id="localVideo" class="local-video" autoplay playsinline muted></video>
-          <audio id="remoteAudio" autoplay></audio>
-          <div class="audio-avatar-box" id="audioCallUI" style="display: none;">
-            <div class="audio-avatar" id="avatarText">📞</div>
-            <h4 id="audioCallerName" style="color: #cbd5e1; font-weight: 500;">အသံဖြင့် ဖုန်းပြောဆိုနေသည်</h4>
-          </div>
-        `;
-        isGroupCall = false;
-      }
-      
-      const remoteVideo = document.getElementById("remoteVideo");
-      const localVideo = document.getElementById("localVideo");
-      const remoteAudio = document.getElementById("remoteAudio");
-
-      if (remoteVideo) remoteVideo.srcObject = null;
-      if (localVideo) localVideo.srcObject = null;
-      if (remoteAudio) remoteAudio.srcObject = null;
-
-      isMicMuted = false;
-      isSpeakerOn = false;
-      document.getElementById("micBtn").classList.remove("muted");
-      document.getElementById("micBtn").innerText = "🎙️";
-      document.getElementById("speakerBtn").classList.remove("active");
-      document.getElementById("speakerBtn").innerText = "🔊";
-      document.getElementById("incomingVolumeSlider").value = 1;
-
-      document.getElementById("videoCallOverlay").style.display = "none";
-    }
-
-    /* ----------------------------------------------------
-       FRIENDS CORNER GROUP LIVE CALL / MEETING LOGIC (FIXED)
-    ---------------------------------------------------- */
-
-    function listenForGroupCallBanner() {
-      if (unsubscribeGroupCall) unsubscribeGroupCall();
-      unsubscribeGroupCall = onSnapshot(collection(db, "group_calls", "friends_group", "participants"), (snapshot) => {
-        const groupChatArea = document.getElementById("groupChatArea");
-        let existingBanner = document.getElementById("activeGroupCallBanner");
-        
-        if (!snapshot.empty) {
-          if (!existingBanner && !isGroupCall) {
-            const banner = document.createElement("div");
-            banner.id = "activeGroupCallBanner";
-            banner.className = "group-call-banner";
-            banner.innerHTML = `
-              <span>🎥 Friends Corner တွင် Group Meeting ပြုလုပ်နေပါသည်</span>
-              <button onclick="joinGroupCall()">Join Meeting</button>
-            `;
-            groupChatArea.insertBefore(banner, groupChatArea.firstChild);
-          }
-        } else if (existingBanner) {
-          existingBanner.remove();
-        }
-      });
-    }
-
-    window.startGroupCall = async (type = "video") => {
-      window.initAudioContext();
-      isGroupCall = true;
-      currentCallType = type;
-
-      try {
-        const audioOptions = { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: 24000 };
-        // Audio ဖြစ်ပါက video ကို အပြီးတိုင် ပိတ်၍ ကန့်သတ်သည်
-        const constraints = (type === "audio") 
-          ? { video: false, audio: audioOptions } 
-          : { video: { width: { max: 640 }, height: { max: 480 }, frameRate: { max: 15 } }, audio: audioOptions };
-          
-        localStream = await navigator.mediaDevices.getUserMedia(constraints);
-      } catch (err) {
-        return alert("ကင်မရာ သို့မဟုတ် မိုက်ခရိုဖုန်း ဖွင့်မရပါ။ Permission စစ်ဆေးပါ!");
-      }
-
-      setupGroupCallUI(type);
-      await joinGroupCallSession();
-    };
-
-    window.joinGroupCall = async () => {
-      window.initAudioContext();
-      isGroupCall = true;
-      currentCallType = "video";
-
-      try {
-        localStream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { max: 640 }, height: { max: 480 }, frameRate: { max: 15 } },
-          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-        });
-      } catch (e) {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
-        currentCallType = "audio";
-      }
-
-      setupGroupCallUI(currentCallType);
-      await joinGroupCallSession();
-    };
-
-    function setupGroupCallUI(type) {
-      const overlay = document.getElementById("videoCallOverlay");
-      overlay.style.display = "flex";
-      document.getElementById("callStatusText").innerText = type === "audio" ? "🎙️ Group Audio Live" : "🎉 Friends Corner Group Meeting";
-      document.getElementById("acceptCallBtn").style.display = "none";
-
-      const container = document.getElementById("videoContainer");
-      container.className = "group-video-grid";
-      container.innerHTML = "";
-
-      // Local User Card တည်ဆောက်ခြင်း
-      const localCard = document.createElement("div");
-      localCard.className = "group-video-card";
-      localCard.id = `card_${currentUser.userID}`;
-
-      if (type === "video") {
-        const localVid = document.createElement("video");
-        localVid.autoplay = true;
-        localVid.playsInline = true;
-        localVid.muted = true;
-        localVid.srcObject = localStream;
-        localCard.appendChild(localVid);
-      } else {
-        localCard.classList.add("group-audio-card");
-        localCard.innerHTML = `<div class="group-audio-avatar">🎙️</div>`;
-      }
-      
-      const label = document.createElement("span");
-      label.className = "user-tag";
-      label.innerText = `သင် (@${currentUser.username})`;
-
-      localCard.appendChild(label);
-      container.appendChild(localCard);
-    }
-
-    async function joinGroupCallSession() {
-      const myRef = doc(db, "group_calls", "friends_group", "participants", currentUser.userID);
-      await setDoc(myRef, {
-        userID: currentUser.userID,
-        username: currentUser.username,
-        name: currentUser.name,
-        joinedAt: serverTimestamp()
-      });
-
-      // Signaling Dynamic Listener
-      const signalCol = collection(db, "group_calls", "friends_group", "signals", currentUser.userID, "incoming");
-      groupSignalsUnsubscribe = onSnapshot(signalCol, async (snapshot) => {
-        snapshot.docChanges().forEach(async (change) => {
-          if (change.type === "added") {
-            const data = change.doc.data();
-            const fromID = data.from;
-
-            if (data.type === "offer") {
-              const pc = connectToGroupPeer(fromID, data.fromUsername, false);
-              await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-              const answer = await pc.createAnswer();
-              await pc.setLocalDescription(answer);
-
-              await addDoc(collection(db, "group_calls", "friends_group", "signals", fromID, "incoming"), {
-                type: "answer",
-                from: currentUser.userID,
-                fromUsername: currentUser.username,
-                answer: { type: answer.type, sdp: answer.sdp }
-              });
-            } else if (data.type === "answer") {
-              const pc = groupPeerConnections[fromID];
-              if (pc && !pc.currentRemoteDescription) {
-                await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-              }
-            } else if (data.type === "candidate") {
-              const pc = groupPeerConnections[fromID];
-              if (pc) {
-                await pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(() => {});
-              }
-            }
-            await deleteDoc(change.doc.ref);
-          }
-        });
-      });
-
-      // Participants Dynamic Listener
-      groupParticipantsUnsubscribe = onSnapshot(collection(db, "group_calls", "friends_group", "participants"), (snapshot) => {
-        snapshot.docChanges().forEach(async (change) => {
-          const pData = change.doc.data();
-          if (!pData || pData.userID === currentUser.userID) return;
-
-          if (change.type === "added") {
-            connectToGroupPeer(pData.userID, pData.username, true);
-          } else if (change.type === "removed") {
-            removeGroupPeer(pData.userID);
-          }
-        });
-      });
-    }
-
-    function connectToGroupPeer(targetID, targetUsername, isInitiator) {
-      if (groupPeerConnections[targetID]) return groupPeerConnections[targetID];
-
-      const pc = new RTCPeerConnection(rtcConfig);
-      groupPeerConnections[targetID] = pc;
-
-      if (localStream) {
-        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-      }
-
-      // Track မြင်ကွင်း/အသံ လက်ခံခြင်း
-      pc.ontrack = (event) => {
-        window.initAudioContext();
-        let card = document.getElementById(`card_${targetID}`);
-        const container = document.getElementById("videoContainer");
-
-        if (!card) {
-          card = document.createElement("div");
-          card.id = `card_${targetID}`;
-          card.className = "group-video-card";
-
-          if (currentCallType === "video") {
-            const remoteVid = document.createElement("video");
-            remoteVid.autoplay = true;
-            remoteVid.playsInline = true;
-            card.appendChild(remoteVid);
-          } else {
-            card.classList.add("group-audio-card");
-            card.innerHTML = `<div class="group-audio-avatar">🎧</div>`;
-            const remoteAud = document.createElement("audio");
-            remoteAud.autoplay = true;
-            card.appendChild(remoteAud);
-          }
-
-          const label = document.createElement("span");
-          label.className = "user-tag";
-          label.innerText = `@${targetUsername}`;
-          card.appendChild(label);
-          container.appendChild(card);
-        }
-
-        const mediaElem = card.querySelector("video") || card.querySelector("audio");
-        if (mediaElem && event.streams[0]) {
-          mediaElem.srcObject = event.streams[0];
-        }
-      };
-
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          addDoc(collection(db, "group_calls", "friends_group", "signals", targetID, "incoming"), {
-            type: "candidate",
-            from: currentUser.userID,
-            fromUsername: currentUser.username,
-            candidate: event.candidate.toJSON()
-          }).catch(() => {});
-        }
-      };
-
-      if (isInitiator) {
-        pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: currentCallType === "video" })
-          .then(async (offer) => {
-            await pc.setLocalDescription(offer);
-            await addDoc(collection(db, "group_calls", "friends_group", "signals", targetID, "incoming"), {
-              type: "offer",
-              from: currentUser.userID,
-              fromUsername: currentUser.username,
-              offer: { type: offer.type, sdp: offer.sdp }
-            });
-          });
-      }
-
-      return pc;
-    }
-
-    function removeGroupPeer(userID) {
-      if (groupPeerConnections[userID]) {
-        groupPeerConnections[userID].close();
-        delete groupPeerConnections[userID];
-      }
-      const card = document.getElementById(`card_${userID}`);
-      if (card) card.remove();
-    }
   </script>
 </body>
-</html>
+</html
